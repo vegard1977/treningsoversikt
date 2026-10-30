@@ -128,6 +128,8 @@ a{color:var(--blue)}
         <div class="merknad">Skritt delt på antall hjerteslag i økta. Stiger når hjertet jobber mindre for samme bevegelse.</div></div>
       <div class="kort"><h3>Hvilepuls <span id="hvile-kilde">klokka og oksymeter</span></h3><div class="graf lav"><canvas id="g-hvile"></canvas></div>
         <div class="merknad">Klokka: laveste 30-minutters snitt per døgn. Oksymeter: morgenmåling i ro, mer sammenlignbar fra dag til dag. En synkende hvilepuls over uker er et godt formtegn.</div></div>
+      <div class="kort"><h3>HRV om morgenen <span id="hrv-kilde">RMSSD med pulsbelte</span></h3><div class="graf lav"><canvas id="g-hrv"></canvas></div>
+        <div class="merknad">2 min liggende rett etter oppvåkning. Enkeltmålinger svinger mye — se på ukesnittet (minst 3 målinger i uka). Grønt bånd = ditt normalområde siste 60 dager (snitt ± 1 standardavvik). Høyere enn vanlig = godt restituert; flere dager under båndet = stress, sykdom eller for lite hvile.</div></div>
     </div>
     <h2>Kondisjonstall</h2>
     <div class="rutenett r2">
@@ -427,7 +429,7 @@ async function last(){
   if (profil.kjonn === 'kvinne'){ GRENSER.midjeRisiko = 80; GRENSER.midjeBukfedme = 88; }
   var kropp = svar[1].map(function(r){
     var m = { id: r.id, dato: r.dato, x: msFra(r.dato), kilde: r.kilde };
-    ['vekt_kg', 'midje_cm', 'hvilepuls', 'vo2maks', 'kondisjonsalder', 'spo2'].forEach(function(f){ m[f] = r[f] == null ? null : +r[f]; });
+    ['vekt_kg', 'midje_cm', 'hvilepuls', 'vo2maks', 'kondisjonsalder', 'spo2', 'hrv'].forEach(function(f){ m[f] = r[f] == null ? null : +r[f]; });
     return m;
   });
   var brudd = HENDELSER.filter(function(h){ return h.kcalBrudd; }).map(function(h){ return msFra(h.dato) - DAG / 2; });
@@ -437,6 +439,7 @@ async function last(){
   D.midje = kropp.filter(function(m){ return m.midje_cm != null; }).map(function(m){ return { x: m.x, y: m.midje_cm }; });
   D.hvile = kropp.filter(function(m){ return m.hvilepuls != null && m.kilde !== 'oksymeter'; }).map(function(m){ return { x: m.x, y: m.hvilepuls }; });
   D.oksymeter = kropp.filter(function(m){ return m.kilde === 'oksymeter' && m.hvilepuls != null; }).map(function(m){ return { x: m.x, y: m.hvilepuls, spo2: m.spo2 }; });
+  D.hrv = kropp.filter(function(m){ return m.hrv != null; }).map(function(m){ return { x: m.x, y: m.hrv }; });
   D.ntnu = kropp.filter(function(m){ return m.vo2maks != null; });
   D.uker = lagUker(D.okter);
   D.vektTrend = vektTrend();
@@ -628,9 +631,25 @@ function tegnKondisjon(){
   var sistOk = ok[ok.length - 1];
   $('hvile-kilde').textContent = sistOk && sistOk.spo2 != null ? 'siste SpO₂ ' + k(sistOk.spo2) + ' %' : 'klokka og oksymeter';
   graf('g-hvile', 'scatter', [punkt('Klokka (døgn)', hv, F.faint, { pointRadius: 2.5 }), linje('Klokka, snitt 7 døgn', rullende(hv, 7), F.lilla),
-      punkt('Oksymeter (morgen)', ok, F.ok, { pointRadius: 4, pointStyle: 'rectRot' })],
+      punkt('Morgenmåling', ok, F.ok, { pointRadius: 4, pointStyle: 'rectRot' })],
     { enhet: 'slag/min', utenForklaring: !ok.length, tom: 'Slå på «Hent vekt og hvilepuls» og gi tilgang i appen', y: { suggestedMin: 50, suggestedMax: 85 },
       referanser: { linjer: D.profil.hvilepuls ? [{ y: D.profil.hvilepuls, tekst: 'profil ' + D.profil.hvilepuls, farge: F.faint, venstre: true }] : [] } });
+
+  // HRV: ukesnitt (midt i uka) og normalområde snitt ± 1 SD over siste 60 dager (minst 7 målinger)
+  var hrv = D.hrv, uker = {};
+  hrv.forEach(function(p){ var u = ukeStart(p.x); (uker[u] = uker[u] || []).push(p.y); });
+  var hrvUke = Object.keys(uker).map(Number).sort(function(a, b){ return a - b; })
+    .map(function(u){ return { x: u + 3.5 * DAG, y: snitt(uker[u]), n: uker[u].length }; });
+  var nye = hrv.filter(function(p){ return p.x > Date.now() - 60 * DAG; }).map(function(p){ return p.y; }), hrvBand = [];
+  if (nye.length >= 7){
+    var m = snitt(nye), sd = Math.sqrt(snitt(nye.map(function(y){ return (y - m) * (y - m); })));
+    hrvBand = [{ fra: m - sd, til: m + sd, farge: F.ok }];
+  }
+  var sistUke = hrvUke[hrvUke.length - 1];
+  $('hrv-kilde').textContent = sistUke ? 'siste ukesnitt ' + k(sistUke.y, 0) + ' ms (' + sistUke.n + (sistUke.n === 1 ? ' måling)' : ' målinger)') : 'RMSSD med pulsbelte';
+  graf('g-hrv', 'scatter', [punkt('Måling', hrv, F.faint), linje('Ukesnitt', hrvUke, F.teal, { pointRadius: 3 })],
+    { enhet: 'ms', x: xRamme(hrv), tom: 'Mål HRV med beltet fra morgenkortet i appen', y: { suggestedMin: 20, suggestedMax: 70 },
+      referanser: { band: hrvBand } });
 
   // E: Uth–Sørensen (15,3 × makspuls / hvilepuls). Grovt, ca. ±15 %.
   // Morgenmålinger fra oksymeteret (siste 30 dager, minst 3) går foran klokka, så profilen.
