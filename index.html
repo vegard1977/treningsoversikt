@@ -126,8 +126,8 @@ a{color:var(--blue)}
         <div class="merknad">Fall første minutt etter Stopp. Over 12 slag regnes som normalt (Cole m.fl., NEJM 1999). Høyere er bedre.</div></div>
       <div class="kort"><h3>Skritt per hjerteslag</h3><div class="graf lav"><canvas id="g-effekt"></canvas></div>
         <div class="merknad">Skritt delt på antall hjerteslag i økta. Stiger når hjertet jobber mindre for samme bevegelse.</div></div>
-      <div class="kort"><h3>Hvilepuls <span>fra klokka via Health Connect</span></h3><div class="graf lav"><canvas id="g-hvile"></canvas></div>
-        <div class="merknad">Laveste 30-minutters snitt per døgn. En synkende hvilepuls over uker er et godt formtegn.</div></div>
+      <div class="kort"><h3>Hvilepuls <span id="hvile-kilde">klokka og oksymeter</span></h3><div class="graf lav"><canvas id="g-hvile"></canvas></div>
+        <div class="merknad">Klokka: laveste 30-minutters snitt per døgn. Oksymeter: morgenmåling i ro, mer sammenlignbar fra dag til dag. En synkende hvilepuls over uker er et godt formtegn.</div></div>
     </div>
     <h2>Kondisjonstall</h2>
     <div class="rutenett r2">
@@ -427,7 +427,7 @@ async function last(){
   if (profil.kjonn === 'kvinne'){ GRENSER.midjeRisiko = 80; GRENSER.midjeBukfedme = 88; }
   var kropp = svar[1].map(function(r){
     var m = { id: r.id, dato: r.dato, x: msFra(r.dato), kilde: r.kilde };
-    ['vekt_kg', 'midje_cm', 'hvilepuls', 'vo2maks', 'kondisjonsalder'].forEach(function(f){ m[f] = r[f] == null ? null : +r[f]; });
+    ['vekt_kg', 'midje_cm', 'hvilepuls', 'vo2maks', 'kondisjonsalder', 'spo2'].forEach(function(f){ m[f] = r[f] == null ? null : +r[f]; });
     return m;
   });
   var brudd = HENDELSER.filter(function(h){ return h.kcalBrudd; }).map(function(h){ return msFra(h.dato) - DAG / 2; });
@@ -435,7 +435,8 @@ async function last(){
   D.okter = svar[0].map(function(r){ return r.data; }).filter(function(o){ return o && o.start; }).map(function(o){ return beregnOkt(o, profil); });
   D.vekt = kropp.filter(function(m){ return m.vekt_kg != null; }).map(function(m){ return { x: m.x, y: m.vekt_kg }; });
   D.midje = kropp.filter(function(m){ return m.midje_cm != null; }).map(function(m){ return { x: m.x, y: m.midje_cm }; });
-  D.hvile = kropp.filter(function(m){ return m.hvilepuls != null; }).map(function(m){ return { x: m.x, y: m.hvilepuls }; });
+  D.hvile = kropp.filter(function(m){ return m.hvilepuls != null && m.kilde !== 'oksymeter'; }).map(function(m){ return { x: m.x, y: m.hvilepuls }; });
+  D.oksymeter = kropp.filter(function(m){ return m.kilde === 'oksymeter' && m.hvilepuls != null; }).map(function(m){ return { x: m.x, y: m.hvilepuls, spo2: m.spo2 }; });
   D.ntnu = kropp.filter(function(m){ return m.vo2maks != null; });
   D.uker = lagUker(D.okter);
   D.vektTrend = vektTrend();
@@ -623,17 +624,23 @@ function tegnKondisjon(){
   var eff = O.filter(function(b){ return b.skrittPerSlag; }).map(function(b){ return { x: b.x, y: b.skrittPerSlag }; });
   graf('g-effekt', 'scatter', [punkt('Skritt per slag', eff, F.blue)], { des: 3, yDes: 2, utenForklaring: true, x: xRamme(eff), tom: 'Kommer når økter er logget med pulsbelte' });
 
-  var hv = D.hvile.slice();
-  graf('g-hvile', 'scatter', [punkt('Døgn', hv, F.faint, { pointRadius: 2.5 }), linje('Snitt 7 døgn', rullende(hv, 7), F.lilla)],
-    { enhet: 'slag/min', utenForklaring: true, tom: 'Slå på «Hent vekt og hvilepuls» og gi tilgang i appen', y: { suggestedMin: 50, suggestedMax: 85 },
+  var hv = D.hvile.slice(), ok = D.oksymeter.slice();
+  var sistOk = ok[ok.length - 1];
+  $('hvile-kilde').textContent = sistOk && sistOk.spo2 != null ? 'siste SpO₂ ' + k(sistOk.spo2) + ' %' : 'klokka og oksymeter';
+  graf('g-hvile', 'scatter', [punkt('Klokka (døgn)', hv, F.faint, { pointRadius: 2.5 }), linje('Klokka, snitt 7 døgn', rullende(hv, 7), F.lilla),
+      punkt('Oksymeter (morgen)', ok, F.ok, { pointRadius: 4, pointStyle: 'rectRot' })],
+    { enhet: 'slag/min', utenForklaring: !ok.length, tom: 'Slå på «Hent vekt og hvilepuls» og gi tilgang i appen', y: { suggestedMin: 50, suggestedMax: 85 },
       referanser: { linjer: D.profil.hvilepuls ? [{ y: D.profil.hvilepuls, tekst: 'profil ' + D.profil.hvilepuls, farge: F.faint, venstre: true }] : [] } });
 
   // E: Uth–Sørensen (15,3 × makspuls / hvilepuls). Grovt, ca. ±15 %.
-  var hvile = hv.length ? snitt(hv.slice(-7).map(function(p){ return p.y; })) : D.profil.hvilepuls;
+  // Morgenmålinger fra oksymeteret (siste 30 dager, minst 3) går foran klokka, så profilen.
+  var nyeOk = ok.filter(function(p){ return p.x > Date.now() - 30 * DAG; }).slice(-7);
+  var hvileKilde = nyeOk.length >= 3 ? 'snitt av ' + nyeOk.length + ' morgenmålinger med oksymeter' : hv.length ? 'snitt siste 7 døgn fra klokka' : 'fra profilen';
+  var hvile = nyeOk.length >= 3 ? snitt(nyeOk.map(function(p){ return p.y; })) : hv.length ? snitt(hv.slice(-7).map(function(p){ return p.y; })) : D.profil.hvilepuls;
   if (hvile){
     var vo2 = 15.3 * D.profil.makspuls / hvile;
     $('vo2-anslag').textContent = '≈ ' + k(vo2, 0) + ' ml/kg/min';
-    $('vo2-tekst').innerHTML = 'Uth–Sørensen-formelen: 15,3 × makspuls (' + D.profil.makspuls + ') / hvilepuls (' + k(hvile) + (hv.length ? ', snitt siste 7 døgn fra klokka' : ', fra profilen') +
+    $('vo2-tekst').innerHTML = 'Uth–Sørensen-formelen: 15,3 × makspuls (' + D.profil.makspuls + ') / hvilepuls (' + k(hvile) + ', ' + hvileKilde +
       '). Usikkerheten er stor (ca. ±15 %), særlig hvis makspulsen er anslått. Bruk den til å se retning over tid, ikke som fasit. NTNU-kalkulatoren til høyre er bedre validert.';
   } else $('vo2-tekst').textContent = 'Krever hvilepuls (fra klokka eller i profilen).';
   var ntnu = D.ntnu.map(function(m){ return { x: m.x, y: m.vo2maks }; });
