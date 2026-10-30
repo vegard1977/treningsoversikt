@@ -130,6 +130,8 @@ a{color:var(--blue)}
         <div class="merknad">Klokka: laveste 30-minutters snitt per døgn. Oksymeter: morgenmåling i ro, mer sammenlignbar fra dag til dag. En synkende hvilepuls over uker er et godt formtegn.</div></div>
       <div class="kort"><h3>HRV om morgenen <span id="hrv-kilde">RMSSD med pulsbelte</span></h3><div class="graf lav"><canvas id="g-hrv"></canvas></div>
         <div class="merknad">2 min liggende rett etter oppvåkning. Enkeltmålinger svinger mye — se på ukesnittet (minst 3 målinger i uka). Grønt bånd = ditt normalområde siste 60 dager (snitt ± 1 standardavvik). Høyere enn vanlig = godt restituert; flere dager under båndet = stress, sykdom eller for lite hvile.</div></div>
+      <div class="kort"><h3>Mobilbruk <span id="bruk-snitt">per døgn, kl. 04–04</span></h3><div class="graf lav"><canvas id="g-bruk"></canvas></div>
+        <div class="merknad" id="bruk-tekst">Skjermtid totalt og etter kl. 22, og når telefonen ble lagt bort. Skjerm sent på kvelden gir ofte dårligere søvn og lavere HRV dagen etter.</div></div>
     </div>
     <h2>Kondisjonstall</h2>
     <div class="rutenett r2">
@@ -376,7 +378,8 @@ function graf(id, type, datasett, valg){
         legend: { display: datasett.length > 1 && !(valg && valg.utenForklaring) },
         tooltip: { callbacks: {
           title: function(it){ return valg && valg.xTekst ? valg.xTekst(it[0].parsed.x) : dato(it[0].parsed.x); },
-          label: function(it){ return (it.dataset.label ? it.dataset.label + ': ' : '') + k(it.parsed.y, valg && valg.des) + (valg && valg.enhet ? ' ' + valg.enhet : ''); },
+          label: function(it){ return (it.dataset.label ? it.dataset.label + ': ' : '') +
+            (it.dataset.tekst ? it.dataset.tekst(it.parsed.y) : k(it.parsed.y, valg && valg.des) + (valg && valg.enhet ? ' ' + valg.enhet : '')); },
           afterLabel: function(it){ return valg && valg.etter ? valg.etter(it.parsed.y) : ''; }
         } },
         referanser: ref || {}
@@ -415,7 +418,8 @@ async function last(){
   var svar = await Promise.all([
     rest('GET', 'trening_okt?select=data&slettet=eq.false&order=start.asc'),
     rest('GET', 'trening_kroppsmaal?select=*&slettet=eq.false&order=dato.asc'),
-    rest('GET', 'trening_oppsett?select=data')
+    rest('GET', 'trening_oppsett?select=data'),
+    rest('GET', 'trening_bruk?select=*&order=dato.asc').catch(function(){ return []; })
   ]);
   var oppsett = svar[2][0] ? svar[2][0].data : {};
   var p = oppsett.profil || {};
@@ -440,6 +444,9 @@ async function last(){
   D.hvile = kropp.filter(function(m){ return m.hvilepuls != null && m.kilde !== 'oksymeter'; }).map(function(m){ return { x: m.x, y: m.hvilepuls }; });
   D.oksymeter = kropp.filter(function(m){ return m.kilde === 'oksymeter' && m.hvilepuls != null; }).map(function(m){ return { x: m.x, y: m.hvilepuls, spo2: m.spo2 }; });
   D.hrv = kropp.filter(function(m){ return m.hrv != null; }).map(function(m){ return { x: m.x, y: m.hrv }; });
+  D.bruk = svar[3].map(function(r){ return { x: msFra(r.dato), dato: r.dato, skjerm: r.skjerm_min, kveld: r.kveld_min, opplasinger: r.opplasinger,
+    siste: r.siste_bruk ? (Date.parse(r.siste_bruk) - msFra(r.dato)) / 3600000 + 12 : null,   // timer etter midnatt; 25 = kl. 01
+    samtaler: r.samtaler, samtaleMin: r.samtale_inn_min == null ? null : +r.samtale_inn_min + +r.samtale_ut_min, topp: r.topp_apper || [] }; });
   D.ntnu = kropp.filter(function(m){ return m.vo2maks != null; });
   D.uker = lagUker(D.okter);
   D.vektTrend = vektTrend();
@@ -650,6 +657,23 @@ function tegnKondisjon(){
   graf('g-hrv', 'scatter', [punkt('Måling', hrv, F.faint), linje('Ukesnitt', hrvUke, F.teal, { pointRadius: 3 })],
     { enhet: 'ms', x: xRamme(hrv), tom: 'Mål HRV med beltet fra morgenkortet i appen', y: { suggestedMin: 20, suggestedMax: 70 },
       referanser: { band: hrvBand } });
+
+  // Mobilbruk: søyler for skjermtid (timer), siste bruk som klokkeslett på høyre akse (24 = midnatt)
+  var B = D.bruk, klokke = function(t){ t = (t + 24) % 24; var h = Math.floor(t), m = Math.round((t - h) * 60); if (m === 60){ h = (h + 1) % 24; m = 0; } return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m; };
+  graf('g-bruk', 'scatter', [
+    { type: 'bar', label: 'Skjermtid', data: B.map(function(b){ return { x: b.x, y: b.skjerm / 60 }; }), backgroundColor: F.blue, barThickness: 10, parsing: true, grouped: false, order: 2, tekst: function(y){ return k(y, 1) + ' t'; } },
+    { type: 'bar', label: 'Etter kl. 22', data: B.map(function(b){ return { x: b.x, y: b.kveld / 60 }; }), backgroundColor: F.orange, barThickness: 10, parsing: true, grouped: false, order: 1, tekst: function(y){ return Math.round(y * 60) + ' min'; } },
+    punkt('Siste bruk (høyre)', B.filter(function(b){ return b.siste != null; }).map(function(b){ return { x: b.x, y: b.siste }; }), F.lilla, { yAxisID: 'y2', pointStyle: 'rectRot', pointRadius: 5, order: 0, tekst: klokke })
+  ], { x: B.length ? { min: Math.max(B[0].x, B[B.length - 1].x - 60 * DAG) - DAG, max: B[B.length - 1].x + DAG } : {}, tom: 'Slå på «Mobilbruk» under Innstillinger i appen', y: { stacked: false, suggestedMin: 0, suggestedMax: 4, ticks: { callback: function(v){ return v + ' t'; } } },
+    y2: { position: 'right', suggestedMin: 20, suggestedMax: 26, grid: { display: false }, ticks: { callback: klokke } } });
+  var uke = B.slice(-7);
+  if (uke.length){
+    var sistB = B[B.length - 1];
+    $('bruk-snitt').textContent = 'snitt ' + uke.length + ' døgn: ' + k(snitt(uke.map(function(b){ return b.skjerm; })) / 60, 1) + ' t';
+    $('bruk-tekst').textContent = 'Siste døgn (' + kd(sistB.x) + '): ' + k(sistB.skjerm / 60, 1) + ' t skjerm, ' + sistB.kveld + ' min etter kl. 22, ' + sistB.opplasinger + ' opplåsinger' +
+      (sistB.siste != null ? ', siste bruk ' + klokke(sistB.siste) : '') + (sistB.samtaleMin != null ? ', samtaler ' + Math.round(sistB.samtaleMin) + ' min' : '') +
+      (sistB.topp.length ? '. Mest brukt: ' + sistB.topp.slice(0, 3).map(function(a){ return a.navn + ' ' + a.min + ' min'; }).join(', ') : '') + '.';
+  }
 
   // E: Uth–Sørensen (15,3 × makspuls / hvilepuls). Grovt, ca. ±15 %.
   // Morgenmålinger fra oksymeteret (siste 30 dager, minst 3) går foran klokka, så profilen.
