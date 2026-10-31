@@ -158,7 +158,7 @@ a{color:var(--blue)}
   <section class="fane" id="fane-kropp">
     <div class="rutenett r2">
       <div class="kort"><h3>Vekt <span id="vekt-tempo"></span></h3><div class="graf"><canvas id="g-vekt"></canvas></div>
-        <div class="merknad">Bakgrunn: rødt = KMI over 30, gult = 25–30 (regnet om til kg for din høyde). Stiplet = framskriving med tempoet siste 6 uker.</div></div>
+        <div class="merknad">Bakgrunn: rødt = KMI over 30, gult = 25–30 (regnet om til kg for din høyde). Stiplet = framskriving med tempoet siste 6 uker. ◆ = sammenlignbar morgenveiing (før kl. 12, ikke spist, etter do, uten klær) — den brukes for dagen. Grå = andre veiinger samme dag.</div></div>
       <div class="kort"><h3>Midje <span id="midje-forhold"></span></h3><div class="graf"><canvas id="g-midje"></canvas></div>
         <div class="merknad">Venstre akse cm, høyre akse midje/høyde. Over 102 cm = bukfedme (Helsedirektoratet), over 94 cm = økt risiko (internasjonal grense).
           Midje/høyde tar hensyn til hvor høy du er: under 0,5 = lav risiko, 0,5–0,6 = økt, 0,6 eller mer = høy (NICE 2022).</div></div>
@@ -432,14 +432,23 @@ async function last(){
   };
   if (profil.kjonn === 'kvinne'){ GRENSER.midjeRisiko = 80; GRENSER.midjeBukfedme = 88; }
   var kropp = svar[1].map(function(r){
-    var m = { id: r.id, dato: r.dato, x: msFra(r.dato), kilde: r.kilde };
+    var m = { id: r.id, dato: r.dato, x: msFra(r.dato), kilde: r.kilde, tid: r.tid == null ? null : +r.tid };
     ['vekt_kg', 'midje_cm', 'hvilepuls', 'vo2maks', 'kondisjonsalder', 'spo2', 'hrv'].forEach(function(f){ m[f] = r[f] == null ? null : +r[f]; });
+    ['spist', 'do1', 'do2', 'klaer'].forEach(function(f){ m[f] = r[f]; });
     return m;
   });
   var brudd = HENDELSER.filter(function(h){ return h.kcalBrudd; }).map(function(h){ return msFra(h.dato) - DAG / 2; });
   D = { profil: profil, kropp: kropp, kcalFra: brudd.length ? Math.max.apply(null, brudd) : 0 };
   D.okter = svar[0].map(function(r){ return r.data; }).filter(function(o){ return o && o.start; }).map(function(o){ return beregnOkt(o, profil); });
-  D.vekt = kropp.filter(function(m){ return m.vekt_kg != null; }).map(function(m){ return { x: m.x, y: m.vekt_kg }; });
+  // Vekt: én verdi per døgn til trend og mål — den sammenlignbare morgenveiingen hvis den finnes,
+  // ellers dagens første. Andre veiinger samme døgn vises bare som svake punkter.
+  var veiinger = kropp.filter(function(m){ return m.vekt_kg != null; })
+    .map(function(m){ return { x: m.tid || m.x, y: m.vekt_kg, dato: m.dato, sml: sammenlignbarVeiing(m) }; })
+    .sort(function(a, b){ return a.x - b.x; });
+  var perDag = {};
+  veiinger.forEach(function(v){ var d = perDag[v.dato]; if (!d || (v.sml && !d.sml)) perDag[v.dato] = v; });
+  D.vekt = Object.keys(perDag).sort().map(function(d){ return perDag[d]; });
+  D.vektAndre = veiinger.filter(function(v){ return perDag[v.dato] !== v; });
   D.midje = kropp.filter(function(m){ return m.midje_cm != null; }).map(function(m){ return { x: m.x, y: m.midje_cm }; });
   D.hvile = kropp.filter(function(m){ return m.hvilepuls != null && m.kilde !== 'oksymeter'; }).map(function(m){ return { x: m.x, y: m.hvilepuls }; });
   D.oksymeter = kropp.filter(function(m){ return m.kilde === 'oksymeter' && m.hvilepuls != null; }).map(function(m){ return { x: m.x, y: m.hvilepuls, spo2: m.spo2 }; });
@@ -465,6 +474,9 @@ function lagUker(okter){
   });
   return uker;
 }
+
+// Samme regel som i appen: før kl. 12, ikke spist, etter do og uten klær
+function sammenlignbarVeiing(m){ return !!m.tid && new Date(m.tid).getHours() < 12 && m.spist === false && m.klaer === false && !!(m.do1 || m.do2); }
 
 function vektTrend(){
   if (D.vekt.length < 2) return null;
@@ -705,7 +717,8 @@ async function lagreNtnu(){
    ================================================================ */
 function tegnKropp(){
   var P = D.profil, T = D.vektTrend, h2 = P.hoyde ? Math.pow(P.hoyde / 100, 2) : null;
-  var ms = milepaeler(), sett = [punkt('Vekt', D.vekt, F.blue), linje('', D.vekt, F.blue, { tension: 0, borderWidth: 2 })];
+  var ms = milepaeler(), sett = [punkt('Vekt', D.vekt, F.blue, { pointStyle: D.vekt.map(function(p){ return p.sml ? 'rectRot' : 'circle'; }) }),
+    linje('', D.vekt, F.blue, { tension: 0, borderWidth: 2 }), punkt('Andre veiinger', D.vektAndre, F.faint, { pointRadius: 2.5 })];
   var maxX = D.vekt.length ? D.vekt[D.vekt.length - 1].x : Date.now();
   if (T && T.perDag < 0){
     var mal = ms.filter(function(m){ return m.vekt < T.na.y; }).slice(0, 3).pop();
