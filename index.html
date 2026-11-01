@@ -14,26 +14,51 @@
   Faner: Oversikt (innsikt, helsestatus, aktivitet per uke) · Kondisjon · Kropp · Økter
   Grenseverdier: Helsedirektoratet (aktivitet, KMI, midje), se GRENSER under.
 -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<!-- CSP: et innskutt skript kan ikke sende data andre steder enn Supabase. Innebygd skript er tillatt (siden er ett dokument). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://ygxhkdwhjyqpkmfzezxv.supabase.co; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha512-CQBWl4fJHWbryGE+Pc7UAxWMUMNMWzWxF4SQo9CgkJIN1kx6djDQZjh3Y8SZ1d+6I+1zze6Z7kHXO7q3UyZAWw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..800&display=swap" rel="stylesheet">
 <style>
+/* Felles designsystem med appen: grafitt, lime aksent, Inter */
 :root{
-  --bg:#0b0f14; --panel:#151b23; --panel-2:#1d2530; --line:#2a3441;
-  --ink:#eef2f7; --soft:#a9b4c2; --faint:#7c8796;
-  --ok:#8ad99c; --warn:#f0c46a; --bad:#e8835a; --blue:#4aa3ff; --orange:#f28c28; --red:#e0412e; --teal:#5fb8a0;
+  color-scheme:dark;
+  --bg:#0d1015; --panel:#161a21; --panel-2:#1f242d; --panel-3:#292f3a; --line:#2b313c; --grid:rgba(255,255,255,.06);
+  --ink:#f1f3f6; --soft:#b3bbc7; --faint:#8e97a5;
+  --accent:#c4f25f; --on-accent:#10180a; --focus:#c4f25f;
+  --ok:#5fd391; --warn:#f4c04e; --bad:#ff6f61; --blue:#6cb4ff; --orange:#ffa94d; --red:#ee4f86; --teal:#4fd1c5; --lilla:#b597f5;
+  --font:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --radius:14px; --gap:14px;
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
-main{max-width:1180px;margin:0 auto;padding:20px 16px 56px}
-header{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;margin-bottom:18px}
-header h1{font-size:1.35rem;margin:0}
-nav{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:4px}
-nav button{background:none;border:none;color:var(--soft);font:inherit;padding:6px 14px;border-radius:9px;cursor:pointer}
-nav button.aktiv{background:var(--panel-2);color:var(--ink)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--font);font-feature-settings:"tnum","cv11";font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+main{max-width:1280px;margin:0 auto;padding:0 24px 56px}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;margin-bottom:18px;position:sticky;top:0;z-index:10;
+  background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-filter:blur(8px);padding:14px 0}
+header h1{font-size:1.35rem;margin:0;font-weight:800;letter-spacing:-.02em}
+nav{display:flex;gap:2px;background:var(--panel);border-radius:999px;padding:4px}
+nav button{background:none;border:none;color:var(--soft);font:inherit;font-weight:500;padding:6px 16px;border-radius:999px;cursor:pointer;transition:background .15s,color .15s}
+nav button:hover:not(.aktiv){background:var(--panel-3);color:var(--ink)}
+nav button.aktiv{background:var(--accent);color:var(--on-accent);font-weight:600}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 .hoyre{margin-left:auto;display:flex;gap:12px;align-items:center;color:var(--faint);font-size:.88rem}
-h2{font-size:1.05rem;margin:26px 0 10px;color:var(--soft);font-weight:600}
-h3{font-size:.98rem;margin:0 0 8px;display:flex;justify-content:space-between;gap:10px}
-h3 span{color:var(--soft);font-weight:400}
-.kort{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;margin:32px 0 10px;color:var(--faint);font-weight:600}
+h3{font-size:.95rem;font-weight:650;margin:0 0 12px;display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+h3 span{color:var(--faint);font-size:.85rem;font-weight:400}
+.kort{background:var(--panel);border:1px solid rgba(255,255,255,.05);border-radius:var(--radius);padding:18px 20px}
+/* Oversikt: nøkkeltall, så aktivitet og helsestatus side om side, så «Hva er nytt» */
+.nokkel{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--gap);margin-bottom:var(--gap)}
+.nk{background:var(--panel);border-radius:var(--radius);padding:14px 16px 14px 19px;position:relative;overflow:hidden}
+.nk::before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:var(--line)}
+.nk.ok::before{background:var(--ok)} .nk.warn::before{background:var(--warn)} .nk.bad::before{background:var(--bad)}
+.nk small{display:block;color:var(--faint);font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.nk b{display:block;font-size:1.9rem;font-weight:800;letter-spacing:-.02em;line-height:1.15;margin:4px 0 2px}
+.nk b span{font-size:.9rem;font-weight:500;color:var(--soft);letter-spacing:0}
+.nk em{font-style:normal;font-size:.85rem;color:var(--soft)} .nk em.ok{color:var(--ok)} .nk em.warn{color:var(--warn)}
+.ov{display:grid;grid-template-columns:7fr 5fr;gap:var(--gap);align-items:start}
+.ov .full{grid-column:1/-1}
+@media (max-width:1100px){.ov{grid-template-columns:1fr}}
+@media (max-width:900px){.nokkel{grid-template-columns:repeat(2,1fr)}}
+.kort.tomt .graf{height:110px} .kort.tomt{opacity:.75} .kort.tomt .merknad{display:none}
 .rutenett{display:grid;gap:14px}
 .r2{grid-template-columns:repeat(auto-fit,minmax(440px,1fr))}
 .r3{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
@@ -42,16 +67,16 @@ h3 span{color:var(--soft);font-weight:400}
 .graf{position:relative;height:240px}
 .graf.lav{height:190px}
 .fane{display:none}.fane.aktiv{display:block}
-.merknad{color:var(--faint);font-size:.86rem;margin-top:8px}
-.innsikt{list-style:none;margin:0;padding:0;display:grid;gap:8px}
-.innsikt li{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:var(--panel-2);border-radius:10px}
-.innsikt li::before{content:"";flex:0 0 8px;height:8px;border-radius:50%;margin-top:7px;background:var(--blue)}
+.merknad{color:var(--faint);font-size:.82rem;line-height:1.45;margin-top:10px}
+.innsikt{list-style:none;margin:0;padding:0;columns:2 380px;column-gap:28px}
+.innsikt li{display:flex;gap:10px;align-items:flex-start;padding:9px 2px;border-bottom:1px solid var(--line);break-inside:avoid;font-size:.93rem;color:var(--soft)}
+.innsikt li::before{content:"";flex:0 0 7px;height:7px;border-radius:50%;margin-top:8px;background:var(--faint)}
 .innsikt li.ok::before{background:var(--ok)}.innsikt li.warn::before{background:var(--warn)}.innsikt li.bad::before{background:var(--bad)}
 .tall{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
 .tall div{background:var(--panel-2);border-radius:10px;padding:10px 12px}
 .tall b{display:block;font-size:1.35rem;font-variant-numeric:tabular-nums}
 .tall small{color:var(--faint)}
-.skala{margin:2px 0 12px}
+.skala{margin:4px 0 16px}
 .skala-tittel{display:flex;justify-content:space-between;font-size:.9rem;color:var(--soft)}
 .skala-tittel b{color:var(--ink)}
 .skala svg{display:block;width:100%;height:auto}
@@ -61,11 +86,13 @@ th{color:var(--faint);font-weight:500}
 th.v,td.v{text-align:left}
 td.notat{white-space:normal;color:var(--soft);font-size:.86em;text-align:left;min-width:200px}
 .tabell{overflow-x:auto}
+#fane-kropp .graf{height:300px}
 .ca{color:var(--warn)} .gra{color:var(--faint)}
 .merke{display:inline-block;font-size:.72rem;padding:1px 7px;border-radius:99px;background:var(--panel-2);color:var(--soft)}
-.merke.app{background:#1f3b29;color:var(--ok)} .merke.chatgpt{background:#2a2f44;color:#a9b8ff}
+.merke.app{background:rgba(196,242,95,.12);color:var(--accent)} .merke.chatgpt{background:rgba(181,151,245,.14);color:var(--lilla)}
 input,select,button{font:inherit;border-radius:8px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);padding:7px 10px}
-button.hoved{background:var(--ok);color:#0b2914;border:none;font-weight:600;cursor:pointer}
+button.hoved{background:var(--accent);color:var(--on-accent);border:none;font-weight:600;cursor:pointer}
+tbody tr:hover td{background:var(--panel-2)}
 button.lenke{background:none;border:none;color:var(--soft);cursor:pointer;padding:4px}
 .innlogging{max-width:360px;display:grid;gap:10px;margin:40px auto}
 .skjema{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}
@@ -83,6 +110,7 @@ a{color:var(--blue)}
       <button data-fane="oversikt">Oversikt</button>
       <button data-fane="kondisjon">Kondisjon</button>
       <button data-fane="kropp">Kropp</button>
+      <button data-fane="hverdag">Hverdag</button>
       <button data-fane="okter">Økter</button>
     </nav>
     <div class="hoyre"><span id="hentet"></span><button class="lenke" id="logg-ut" hidden>Logg ut</button></div>
@@ -98,18 +126,18 @@ a{color:var(--blue)}
 
   <!-- ============ OVERSIKT: G + A + C ============ -->
   <section class="fane" id="fane-oversikt">
-    <div class="rutenett r2">
-      <div class="kort"><h3>Hva er nytt</h3><ul class="innsikt" id="innsikt"></ul></div>
-      <div class="kort"><h3>Helsestatus <span>mot Helsedirektoratets råd</span></h3><div id="malere"></div>
-        <div class="merknad">Trekant = nå. Stiplet strek = ditt mål.</div></div>
-    </div>
-    <h2>Aktivitet per uke</h2>
-    <div class="kort">
-      <h3>Minutter mot anbefalingen <span id="rekke"></span></h3>
-      <div class="graf"><canvas id="g-uker"></canvas></div>
-      <div class="merknad">Helsedirektoratet: 150–300 min moderat eller 75–150 min høy intensitet per uke — ett minutt høy teller som to moderate.
-        Intensitet fra pulsen (moderat 64–76 %, høy ≥ 77 % av makspuls). Økter uten pulskurve er anslått fra pulsobservasjoner, ellers regnet som moderat.
-        Råd om muskelstyrkende aktivitet minst 2 dager i uka registreres ikke her.</div>
+    <div class="nokkel" id="nokkel"></div>
+    <div class="ov">
+      <div class="kort">
+        <h3>Aktivitet per uke <span id="rekke"></span></h3>
+        <div class="graf"><canvas id="g-uker"></canvas></div>
+        <div class="merknad">Helsedirektoratet: 150–300 min moderat eller 75–150 min høy intensitet per uke — ett minutt høy teller som to moderate.
+          Intensitet fra pulsen (moderat 64–76 %, høy ≥ 77 % av makspuls). Økter uten pulskurve er anslått fra pulsobservasjoner, ellers regnet som moderat.
+          Råd om muskelstyrkende aktivitet minst 2 dager i uka registreres ikke her.</div>
+      </div>
+      <div class="kort"><h3>Helsestatus <span>▼ nå · ┆ mål</span></h3><div id="malere"></div>
+        <div class="merknad">Mot Helsedirektoratets råd.</div></div>
+      <div class="kort full"><h3>Hva er nytt</h3><ul class="innsikt" id="innsikt"></ul></div>
     </div>
   </section>
 
@@ -162,12 +190,44 @@ a{color:var(--blue)}
       <div class="kort"><h3>Midje <span id="midje-forhold"></span></h3><div class="graf"><canvas id="g-midje"></canvas></div>
         <div class="merknad">Venstre akse cm, høyre akse midje/høyde. Over 102 cm = bukfedme (Helsedirektoratet), over 94 cm = økt risiko (internasjonal grense).
           Midje/høyde tar hensyn til hvor høy du er: under 0,5 = lav risiko, 0,5–0,6 = økt, 0,6 eller mer = høy (NICE 2022).</div></div>
+      <div class="kort"><h3>Blodtrykk <span id="bt-siste"></span></h3><div class="graf"><canvas id="g-bt"></canvas></div>
+        <div class="merknad">Hver måling med blodtrykksmåleren; linja er snittet per døgn. Stiplet = grensen for høyt blodtrykk ved hjemmemåling, 135/85 mmHg (europeisk retningslinje).</div></div>
     </div>
     <h2>Milepæler</h2>
     <div class="kort tabell"><table><thead><tr><th class="v">Milepæl</th><th>Vekt</th><th>Igjen</th><th>Anslått dato</th><th class="v">Hvorfor</th></tr></thead><tbody id="milepaeler"></tbody></table></div>
   </section>
 
   <!-- ============ ØKTER: F + H ============ -->
+  <!-- ============ HVERDAG: klokka via Health Connect ============ -->
+  <section class="fane" id="fane-hverdag">
+    <div class="nokkel" id="nokkel-klokke"></div>
+    <div class="rutenett r2">
+      <div class="kort"><h3>Søvn <span id="sovn-snitt"></span></h3><div class="graf"><canvas id="g-sovn"></canvas></div>
+        <div class="merknad">Hovedsøvnen hver natt fordelt på faser, på døgnet du våkner. Grønt bånd = 7–9 timer, anbefalt for voksne. Dyp søvn og REM fra klokka er anslag, ikke laboratoriemåling.</div></div>
+      <div class="kort"><h3>Leggetid og oppvåkning <span id="sovn-tider"></span></h3><div class="graf"><canvas id="g-sovntid"></canvas></div>
+        <div class="merknad">Faste tider (under en times variasjon) gir bedre søvn enn å ta igjen i helgene.</div></div>
+      <div class="kort"><h3>Skritt <span id="skritt-snitt"></span></h3><div class="graf"><canvas id="g-skritt"></canvas></div>
+        <div class="merknad">Stiplet = 8000 skritt; dødelighetsrisikoen synker tydelig opp mot 7000–9000 skritt om dagen (Paluch m.fl., Lancet Public Health 2022). Dagen i dag er ikke ferdig.</div></div>
+      <div class="kort"><h3>Oksygen og pust om natta <span id="spo2-siste"></span></h3><div class="graf"><canvas id="g-spo2natt"></canvas></div>
+        <div class="merknad">SpO₂ snitt og laveste måling per døgn (venstre akse), pust per minutt (høyre akse). Laveste under 90 % flere netter kan være verdt å nevne for legen (søvnapné).</div></div>
+      <div class="kort"><h3>HRV og hvilepuls fra klokka <span id="hrv-klokke"></span></h3><div class="graf"><canvas id="g-hrvklokke"></canvas></div>
+        <div class="merknad">Klokkas egne tall fra Samsung Health. HRV (venstre) svinger mye fra natt til natt — se på trenden. Hvilepuls (høyre) som synker over uker er et godt formtegn.</div></div>
+      <div class="kort"><h3>Puls hele døgnet <span id="puls-dogn"></span></h3><div class="graf"><canvas id="g-pulsdogn"></canvas></div>
+        <div class="merknad">Fra klokka, egne økter ikke med. Snitt av alle minutter med måling, laveste minuttsnitt og høyeste enkeltmåling per døgn. Et døgnsnitt som kryper oppover over flere dager kan bety lite søvn, stress eller sykdom på gang.</div></div>
+      <div class="kort"><h3>Døgnkurve <span id="puls-kurve"></span></h3><div class="graf"><canvas id="g-pulstime"></canvas></div>
+        <div class="merknad">Snittpuls per klokketime: siste 7 døgn mot de 30 før. Natt-timene viser hvor lavt pulsen går i søvn; trening og gåturer gir toppene.</div></div>
+      <div class="kort"><h3>Hudtemperatur om natta <span id="hud-siste"></span></h3><div class="graf"><canvas id="g-hud"></canvas></div>
+        <div class="merknad">Avvik fra klokkas egen grunnlinje (°C). Over +1 °C en natt eller to ses ofte ved infeksjon eller dårlig restitusjon — vurder å ta det rolig med treningen.</div></div>
+      <div class="kort"><h3>Kroppssammensetning <span id="kropp-klokke"></span></h3><div class="graf"><canvas id="g-sammensetning"></canvas></div>
+        <div class="merknad">Fra klokka eller vekta (bioimpedans). Fettprosent (venstre) og fettfri masse (høyre). Måles best samme tid på dagen, før mat og trening.</div></div>
+      <div class="kort"><h3>Energi <span id="energi-snitt"></span></h3><div class="graf"><canvas id="g-energi"></canvas></div>
+        <div class="merknad">Aktive kcal per døgn fra klokka, og totalt forbruk når klokka oppgir det. Kcal fra mat og vann vises i verktøytipset når det er logget.</div></div>
+    </div>
+    <h2>Treninger fra klokka</h2>
+    <div class="kort tabell"><table><thead><tr><th class="v">Dato</th><th class="v">Type</th><th>Varighet</th><th class="v">Også i appen</th><th class="v">Navn</th></tr></thead><tbody id="klokke-treninger"></tbody></table>
+      <div class="merknad" id="klokke-kilder"></div></div>
+  </section>
+
   <section class="fane" id="fane-okter">
     <div class="kort">
       <h3>Økt mot økt <span><select id="sml-a"></select> mot <select id="sml-b"></select></span></h3>
@@ -210,8 +270,10 @@ var HENDELSER = [
   { dato: '2026-10-22', tekst: 'service på maskinen', kort: 'service' }
 ];
 
-var F = { ok: '#8ad99c', warn: '#f0c46a', bad: '#e8835a', blue: '#4aa3ff', orange: '#f28c28', red: '#e0412e', teal: '#5fb8a0',
-          ink: '#eef2f7', soft: '#a9b4c2', faint: '#7c8796', line: '#2a3441', panel2: '#1d2530', lilla: '#a9b8ff' };
+// Samme verdier som :root (Chart.js tegner på canvas og leser ikke CSS-variabler)
+var F = { ok: '#5fd391', warn: '#f4c04e', bad: '#ff6f61', blue: '#6cb4ff', orange: '#ffa94d', red: '#ee4f86', teal: '#4fd1c5',
+          ink: '#f1f3f6', soft: '#b3bbc7', faint: '#8e97a5', line: '#2b313c', panel: '#161a21', panel2: '#1f242d', lilla: '#b597f5',
+          grid: 'rgba(255,255,255,.06)', aksent: '#c4f25f' };
 var DAG = 86400000, UKE = 7 * DAG;
 
 /* ================================================================
@@ -252,11 +314,27 @@ async function auth(sti, body){
   localStorage.setItem(SESJON, JSON.stringify(s));
   return s;
 }
+var fornyer = null;   // pågående fornying, delt av alle kall som trenger token samtidig
 async function token(){
   var s = JSON.parse(localStorage.getItem(SESJON) || 'null');
   if (!s) throw new Error('Ikke innlogget');
-  if (Date.now() > s.utloper - 60000) s = await auth('token?grant_type=refresh_token', { refresh_token: s.refresh_token });
+  if (Date.now() > s.utloper - 60000){
+    fornyer = fornyer || auth('token?grant_type=refresh_token', { refresh_token: s.refresh_token }).finally(function(){ fornyer = null; });
+    s = await fornyer;
+  }
   return s.access_token;
+}
+// Henter alle rader side for side (PostgREST gir høyst 1000 per kall)
+var klokkeFeil = null;
+var klokkeHud = null;   // «ikke_stottet» hvis telefonens Health Connect mangler hudtemperatur (sendes fra appen i data.hud_status)   // feil ved henting av klokkedata
+var brukFeil = null;   // feil ved henting av mobilbruk (vises i stedet for «slå på»)
+async function hentAlle(sti){
+  var alle = [], n = 1000;
+  for (var fra = 0; ; fra += n){
+    var side = await rest('GET', sti + '&limit=' + n + '&offset=' + fra);
+    alle = alle.concat(side);
+    if (side.length < n) return alle;
+  }
 }
 async function rest(metode, sti, body, ekstra){
   var h = Object.assign({ apikey: NOKKEL, Authorization: 'Bearer ' + await token(), 'Content-Type': 'application/json' }, ekstra || {});
@@ -271,22 +349,28 @@ async function rest(metode, sti, body, ekstra){
 var D = null;   // alt som er hentet og beregnet
 
 function beregnOkt(o, profil){
-  var maks = profil.makspuls, min = o.varighet_s ? o.varighet_s / 60 : null;
+  var maks = +o.makspuls || profil.makspuls;   // makspulsen da økta ble gjort (lagres fra nå av)
+  // Konsolltiden, ellers appens egen stoppeklokke (som appen selv gjør)
+  var min = o.varighet_s ? o.varighet_s / 60 : (o.slutt > o.start ? (o.slutt - o.start) / 60000 : null);
   var b = { o: o, x: o.start, min: min, spm: o.skritt && min ? o.skritt / min : null, kpm: o.kcal && min ? o.kcal / min : null,
-            kcalSammenlign: o.start >= D.kcalFra, puls: o.puls || [] };
+            kcalSammenlign: o.start >= D.kcalFra && !o.kcal_ca, puls: o.puls || [] };   // omtrentlig kcal sammenlignes ikke
   var p = b.puls;
   if (p.length > 30){
     b.pulsKilde = 'belte';
     b.snittPuls = snitt(p.map(function(q){ return q[1]; }));
     b.maksPuls = Math.max.apply(null, p.map(function(q){ return q[1]; }));
     // Intensitetsminutter fra hver måling (maks 5 s per måling, så hull ikke teller)
-    var mod = 0, hoy = 0;
+    var mod = 0, hoy = 0, dekket = 0;
     for (var i = 1; i < p.length; i++){
       var dt = Math.min(5, p[i][0] - p[i - 1][0]), andel = p[i][1] / maks;
       if (dt <= 0) continue;
+      dekket += dt;
       if (andel >= GRENSER.hoy) hoy += dt; else if (andel >= GRENSER.moderat) mod += dt;
     }
-    b.modMin = mod / 60; b.hoyMin = hoy / 60;
+    // Tid uten puls (beltet koblet til sent eller falt ut) telles som moderat, som en økt helt uten belte —
+    // ellers ga en delvis pulskurve færre minutter enn ingen kurve
+    var uten = Math.max(0, (min || 0) - dekket / 60);
+    b.modMin = mod / 60 + uten; b.hoyMin = hoy / 60;
     // Snittpuls per motstandsnivå etter 10 min (oppvarming og pulsstigning utelatt)
     var perR = {};
     p.forEach(function(q){
@@ -326,11 +410,29 @@ function beregnOkt(o, profil){
 /* ================================================================
    Chart.js: felles stil og referanselinjer
    ================================================================ */
-Chart.defaults.color = F.soft;
-Chart.defaults.borderColor = F.line;
-Chart.defaults.font.family = 'system-ui,-apple-system,"Segoe UI",sans-serif';
-Chart.defaults.plugins.legend.labels.boxWidth = 12;
+var FONT = '"Inter",system-ui,-apple-system,"Segoe UI",sans-serif';
+Chart.defaults.color = F.faint;          // aksetekst dempet; data skal stikke seg ut
+Chart.defaults.borderColor = F.grid;
+Chart.defaults.font.family = FONT;
+Chart.defaults.font.size = 11.5;
 Chart.defaults.maintainAspectRatio = false;
+Chart.defaults.scale.grid.color = F.grid;
+Chart.defaults.scale.grid.tickLength = 0;
+Chart.defaults.scale.border.display = false;
+Chart.defaults.scale.ticks.padding = 8;
+Chart.defaults.elements.point.borderWidth = 0;
+Chart.defaults.elements.point.hitRadius = 8;
+Chart.defaults.elements.line.borderCapStyle = 'round';
+Chart.defaults.elements.line.borderJoinStyle = 'round';
+Chart.defaults.elements.bar.borderRadius = 3;
+(function(LG, TT){
+  LG.align = 'end'; LG.labels.usePointStyle = true; LG.labels.pointStyle = 'circle';
+  LG.labels.filter = function(e){ return !!e.text; };   // datasett uten navn (hjelpelinjer) står ikke i forklaringen
+  LG.labels.boxWidth = 7; LG.labels.boxHeight = 7; LG.labels.padding = 14; LG.labels.color = F.soft;
+  TT.backgroundColor = F.panel2; TT.borderColor = F.line; TT.borderWidth = 1;
+  TT.titleColor = F.ink; TT.bodyColor = F.soft; TT.titleFont = { weight: '600', size: 12 }; TT.bodyFont = { size: 12 };
+  TT.padding = { x: 10, y: 8 }; TT.cornerRadius = 8; TT.boxPadding = 4; TT.usePointStyle = true; TT.caretSize = 0;
+})(Chart.defaults.plugins.legend, Chart.defaults.plugins.tooltip);
 
 // Vannrette linjer/bånd og loddrette markører: options.plugins.referanser = {linjer, band, markorer}
 Chart.register({
@@ -342,15 +444,20 @@ Chart.register({
     (o.band || []).forEach(function(b){
       var y1 = y.getPixelForValue(Math.min(b.til, y.max)), y0 = y.getPixelForValue(Math.max(b.fra, y.min));
       if (y0 <= y1) return;
-      ctx.fillStyle = b.farge; ctx.globalAlpha = .12; ctx.fillRect(ca.left, y1, ca.right - ca.left, y0 - y1); ctx.globalAlpha = 1;
+      ctx.fillStyle = b.farge; ctx.globalAlpha = .08; ctx.fillRect(ca.left, y1, ca.right - ca.left, y0 - y1);
+      ctx.globalAlpha = .35; ctx.fillRect(ca.left, y1, ca.right - ca.left, 1); ctx.fillRect(ca.left, y0 - 1, ca.right - ca.left, 1); ctx.globalAlpha = 1;
     });
-    ctx.font = '11px system-ui'; ctx.setLineDash([5, 4]);
+    ctx.font = '600 10.5px ' + FONT; ctx.setLineDash([3, 4]); ctx.lineWidth = 1;
+    var sist = { v: [], h: [] };   // etiketter per side, så de ikke legger seg oppå hverandre
     (o.linjer || []).forEach(function(l){
       if (l.y < y.min || l.y > y.max) return;
-      var py = y.getPixelForValue(l.y);
-      ctx.strokeStyle = l.farge; ctx.beginPath(); ctx.moveTo(ca.left, py); ctx.lineTo(ca.right, py); ctx.stroke();
-      ctx.fillStyle = l.farge; ctx.textAlign = l.venstre ? 'left' : 'right';
-      ctx.fillText(l.tekst || '', l.venstre ? ca.left + 4 : ca.right - 4, py + (l.under ? 13 : -4));
+      var py = y.getPixelForValue(l.y), venstre = !!l.venstre, ty = py + (l.under ? 13 : -4);
+      if ((venstre ? sist.v : sist.h).some(function(t){ return Math.abs(t - ty) < 13; })) venstre = !venstre;
+      (venstre ? sist.v : sist.h).push(ty);
+      ctx.globalAlpha = .7; ctx.strokeStyle = l.farge; ctx.beginPath(); ctx.moveTo(ca.left, py); ctx.lineTo(ca.right, py); ctx.stroke(); ctx.globalAlpha = 1;
+      var tw = ctx.measureText(l.tekst || '').width, tx = venstre ? ca.left + 4 : ca.right - 4 - tw;
+      ctx.fillStyle = F.panel; ctx.globalAlpha = .85; ctx.fillRect(tx - 3, ty - 10, tw + 6, 13); ctx.globalAlpha = 1;
+      ctx.fillStyle = l.farge; ctx.textAlign = 'left'; ctx.fillText(l.tekst || '', tx, ty);
     });
     ctx.setLineDash([2, 4]);
     (o.markorer || []).forEach(function(m, i){
@@ -359,7 +466,7 @@ Chart.register({
       ctx.strokeStyle = F.faint; ctx.beginPath(); ctx.moveTo(px, ca.top); ctx.lineTo(px, ca.bottom); ctx.stroke();
       ctx.fillStyle = F.faint; ctx.textAlign = 'left'; ctx.fillText(m.tekst, px + 4, ca.top + 11 + i * 13);
     });
-    if (o.tom){ ctx.fillStyle = F.faint; ctx.font = '13px system-ui'; ctx.textAlign = 'center'; ctx.fillText(o.tom, (ca.left + ca.right) / 2, (ca.top + ca.bottom) / 2); }
+    if (o.tom){ ctx.fillStyle = F.faint; ctx.font = '13px ' + FONT; ctx.textAlign = 'center'; ctx.fillText(o.tom, (ca.left + ca.right) / 2, (ca.top + ca.bottom) / 2); }
     ctx.restore();
   }
 });
@@ -373,42 +480,55 @@ function graf(id, type, datasett, valg){
     data: { datasets: datasett },
     options: {
       animation: false, parsing: false, normalized: true,
-      interaction: { mode: 'nearest', intersect: false },
+      interaction: { mode: 'nearest', axis: 'x', intersect: false },
       plugins: {
         legend: { display: datasett.length > 1 && !(valg && valg.utenForklaring) },
         tooltip: { callbacks: {
           title: function(it){ return valg && valg.xTekst ? valg.xTekst(it[0].parsed.x) : dato(it[0].parsed.x); },
           label: function(it){ return (it.dataset.label ? it.dataset.label + ': ' : '') +
             (it.dataset.tekst ? it.dataset.tekst(it.parsed.y) : k(it.parsed.y, valg && valg.des) + (valg && valg.enhet ? ' ' + valg.enhet : '')); },
-          afterLabel: function(it){ return valg && valg.etter ? valg.etter(it.parsed.y) : ''; }
+          afterLabel: function(it){ return it.dataset.etter ? it.dataset.etter(it.raw) : valg && valg.etter ? valg.etter(it.parsed.y) : ''; }
         } },
         referanser: ref || {}
       },
       scales: {
-        x: Object.assign({ type: 'linear', ticks: { maxTicksLimit: 7, callback: function(v){ return valg && valg.xTekst ? valg.xTekst(v) : kd(v); } }, grid: { display: false } }, valg && valg.x),
-        y: Object.assign({ ticks: { callback: function(v){ return k(v, valg && valg.yDes); } } }, valg && valg.y)
+        // stepSize: aldri mer enn én tick per døgn (ga «24. okt., 24. okt.»); precision: ingen «15, 15, 14»
+        x: Object.assign({ type: 'linear', ticks: { maxTicksLimit: 7, maxRotation: 0, autoSkipPadding: 16, stepSize: valg && valg.xTekst ? undefined : DAG,
+          callback: function(v){ return valg && valg.xTekst ? valg.xTekst(v) : kd(v); } }, grid: { display: false } }, valg && valg.x),
+        y: Object.assign({ ticks: { maxTicksLimit: 6, precision: valg && valg.yDes != null ? valg.yDes : 0, callback: function(v){ return k(v, valg && valg.yDes); } } }, valg && valg.y)
       }
     }
   };
   if (valg && valg.y2) cfg.options.scales.y2 = valg.y2;
-  // Ingen punkter: vis siste 60 dager og en tekst i stedet for en tom akse fra 1970
-  if (datasett.every(function(ds){ return !ds.data.length; })){
+  // Ingen punkter: vis siste 60 dager og en tekst i stedet for en tom akse fra 1970, uten y-tall («1, 1, 0, 0»)
+  var tom = datasett.every(function(ds){ return !ds.data.length; }), kort = $(id).closest('.kort');
+  if (kort) kort.classList.toggle('tomt', tom);
+  if (tom){
     Object.assign(cfg.options.scales.x, { min: Date.now() - 60 * DAG, max: Date.now() });
+    cfg.options.scales.y.ticks = { display: false }; cfg.options.scales.y.grid = { display: false };
+    if (cfg.options.scales.y2) cfg.options.scales.y2.display = false;
     cfg.options.plugins.referanser = Object.assign({}, ref, { tom: (valg && valg.tom) || 'Ingen data ennå' });
   }
   grafer[id] = new Chart($(id), cfg);
   return grafer[id];
 }
 function punkt(etikett, data, farge, ekstra){
-  return Object.assign({ label: etikett, data: data, borderColor: farge, backgroundColor: farge, pointRadius: 3.5, pointHoverRadius: 6, showLine: false }, ekstra);
+  return Object.assign({ label: etikett, data: data, borderColor: farge, backgroundColor: farge, pointRadius: 3, pointHoverRadius: 5.5,
+    pointHoverBorderWidth: 2, pointHoverBorderColor: F.panel, showLine: false }, ekstra);
 }
 function linje(etikett, data, farge, ekstra){
-  return Object.assign({ label: etikett, data: data, borderColor: farge, backgroundColor: farge, pointRadius: 0, borderWidth: 2.5, showLine: true, tension: .25 }, ekstra);
+  return Object.assign({ label: etikett, data: data, borderColor: farge, backgroundColor: farge, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2.25, showLine: true,
+    tension: .3, cubicInterpolationMode: 'monotone' }, ekstra);   // monotone: snittlinja svinger ikke forbi punktene
 }
 // Ett enkelt punkt gir ellers en meningsløs tidsakse
 function xRamme(p){ var x = p.map(function(q){ return q.x; }); if (!x.length) return {};
   var a = Math.min.apply(null, x), b = Math.max.apply(null, x); return b - a < 7 * DAG ? { min: a - 21 * DAG, max: b + 21 * DAG } : {}; }
-function rullende(p, n){ return p.map(function(q, i){ var a = p.slice(Math.max(0, i - n + 1), i + 1); return { x: q.x, y: snitt(a.map(function(z){ return z.y; })) }; }); }
+// Snitt over n kalenderdøgn bakover fra hvert punkt (ikke n punkter, som kunne strekke seg over uker med hull)
+function rullende(p, n){ return p.map(function(q){ var a = p.filter(function(z){ return z.x <= q.x && z.x > q.x - n * DAG; }); return { x: q.x, y: snitt(a.map(function(z){ return z.y; })) }; }); }
+// Lokale klokketimer etter midnatt ved starten av dato (25 = kl. 01 natta etter). Regnes fra klokkeslettet,
+// ikke fra ms-differansen, så natta sommertid skifter gir ikke én time feil.
+function isoLokal(t){ return t.getFullYear() + '-' + ('0' + (t.getMonth() + 1)).slice(-2) + '-' + ('0' + t.getDate()).slice(-2); }
+function timerEtter(iso, dato){ var t = new Date(iso); return Math.round((msFra(isoLokal(t)) - msFra(dato)) / DAG) * 24 + t.getHours() + t.getMinutes() / 60; }
 function hendelsesMarkorer(alle){ return HENDELSER.filter(function(h){ return alle || !h.bare; }).map(function(h){ return { x: msFra(h.dato), tekst: h.kort || h.tekst }; }); }
 
 /* ================================================================
@@ -416,24 +536,26 @@ function hendelsesMarkorer(alle){ return HENDELSER.filter(function(h){ return al
    ================================================================ */
 async function last(){
   var svar = await Promise.all([
-    rest('GET', 'trening_okt?select=data&slettet=eq.false&order=start.asc'),
-    rest('GET', 'trening_kroppsmaal?select=*&slettet=eq.false&order=dato.asc'),
+    hentAlle('trening_okt?select=data&slettet=eq.false&order=start.asc,id.asc'),
+    hentAlle('trening_kroppsmaal?select=*&slettet=eq.false&order=dato.asc,id.asc'),
     rest('GET', 'trening_oppsett?select=data'),
-    rest('GET', 'trening_bruk?select=*&order=dato.asc').catch(function(){ return []; })
+    hentAlle('trening_bruk?select=*&order=dato.asc').catch(function(e){ console.warn('Mobilbruk:', e.message); brukFeil = e.message; return []; }),
+    hentAlle('trening_klokke?select=dato,data&order=dato.asc').catch(function(e){ console.warn('Klokkedata:', e.message); klokkeFeil = e.message; return []; })
   ]);
   var oppsett = svar[2][0] ? svar[2][0].data : {};
   var p = oppsett.profil || {};
   var alder = alderFra(p.fodselsdato);
   var profil = {
     hoyde: +p.hoyde_cm || null, alder: alder, kjonn: p.kjonn,
-    makspuls: +p.makspuls || (alder ? 220 - alder : 180),
+    makspuls: +p.makspuls || (alder ? 220 - alder : 171),   // samme reserve som appen
+    makspulsAnslatt: !+p.makspuls,
     hvilepuls: +p.hvilepuls || null,
     malVekt: +p.mal_vekt_kg || null, malMidje: +p.mal_midje_cm || null
   };
   if (profil.kjonn === 'kvinne'){ GRENSER.midjeRisiko = 80; GRENSER.midjeBukfedme = 88; }
   var kropp = svar[1].map(function(r){
     var m = { id: r.id, dato: r.dato, x: msFra(r.dato), kilde: r.kilde, tid: r.tid == null ? null : +r.tid };
-    ['vekt_kg', 'midje_cm', 'hvilepuls', 'vo2maks', 'kondisjonsalder', 'spo2', 'hrv'].forEach(function(f){ m[f] = r[f] == null ? null : +r[f]; });
+    ['vekt_kg', 'midje_cm', 'hvilepuls', 'vo2maks', 'kondisjonsalder', 'spo2', 'hrv', 'bt_sys', 'bt_dia', 'bt_puls'].forEach(function(f){ m[f] = r[f] == null ? null : +r[f]; });
     ['spist', 'do1', 'do2', 'klaer'].forEach(function(f){ m[f] = r[f]; });
     return m;
   });
@@ -445,18 +567,29 @@ async function last(){
   var veiinger = kropp.filter(function(m){ return m.vekt_kg != null; })
     .map(function(m){ return { x: m.tid || m.x, y: m.vekt_kg, dato: m.dato, sml: sammenlignbarVeiing(m) }; })
     .sort(function(a, b){ return a.x - b.x; });
-  var perDag = {};
-  veiinger.forEach(function(v){ var d = perDag[v.dato]; if (!d || (v.sml && !d.sml)) perDag[v.dato] = v; });
-  D.vekt = Object.keys(perDag).sort().map(function(d){ return perDag[d]; });
-  D.vektAndre = veiinger.filter(function(v){ return perDag[v.dato] !== v; });
+  // En veiing som avviker mer enn 3 kg (+0,15 kg per døgn siden forrige) fra forrige dagsverdi er trolig feillest
+  // (94,3 for 104,3), og velges bare hvis døgnet ikke har noe annet.
+  var perDag = {}, forrige = null;
+  veiinger.forEach(function(v){ (perDag[v.dato] = perDag[v.dato] || []).push(v); });
+  D.vekt = Object.keys(perDag).sort().map(function(d){
+    var l = perDag[d], rimelig = function(v){ return !forrige || Math.abs(v.y - forrige.y) <= 3 + .15 * Math.max(0, (v.x - forrige.x) / DAG - 1); };
+    forrige = l.filter(function(v){ return v.sml && rimelig(v); })[0] || l.filter(rimelig)[0] || l.filter(function(v){ return v.sml; })[0] || l[0];
+    return forrige;
+  });
+  D.vektAndre = veiinger.filter(function(v){ return D.vekt.indexOf(v) < 0; });
   D.midje = kropp.filter(function(m){ return m.midje_cm != null; }).map(function(m){ return { x: m.x, y: m.midje_cm }; });
   D.hvile = kropp.filter(function(m){ return m.hvilepuls != null && m.kilde !== 'oksymeter'; }).map(function(m){ return { x: m.x, y: m.hvilepuls }; });
   D.oksymeter = kropp.filter(function(m){ return m.kilde === 'oksymeter' && m.hvilepuls != null; }).map(function(m){ return { x: m.x, y: m.hvilepuls, spo2: m.spo2 }; });
+  D.bt = kropp.filter(function(m){ return m.bt_sys != null && m.bt_dia != null; })
+    .map(function(m){ return { x: m.tid || m.x, dato: m.dato, sys: m.bt_sys, dia: m.bt_dia, puls: m.bt_puls }; }).sort(function(a, b){ return a.x - b.x; });
   D.hrv = kropp.filter(function(m){ return m.hrv != null; }).map(function(m){ return { x: m.x, y: m.hrv }; });
   D.bruk = svar[3].map(function(r){ return { x: msFra(r.dato), dato: r.dato, skjerm: r.skjerm_min, kveld: r.kveld_min, opplasinger: r.opplasinger,
-    siste: r.siste_bruk ? (Date.parse(r.siste_bruk) - msFra(r.dato)) / 3600000 + 12 : null,   // timer etter midnatt; 25 = kl. 01
+    siste: r.siste_bruk ? timerEtter(r.siste_bruk, r.dato) : null,   // timer etter midnatt; 25 = kl. 01
     samtaler: r.samtaler, samtaleMin: r.samtale_inn_min == null ? null : +r.samtale_inn_min + +r.samtale_ut_min, topp: r.topp_apper || [] }; });
   D.ntnu = kropp.filter(function(m){ return m.vo2maks != null; });
+  D.klokke = svar[4].map(function(r){ return Object.assign({ dato: r.dato, x: msFra(r.dato) }, r.data); });
+  var medHud = D.klokke.filter(function(d){ return d.hud_status; }).pop();
+  klokkeHud = medHud ? medHud.hud_status : null;
   D.uker = lagUker(D.okter);
   D.vektTrend = vektTrend();
 }
@@ -478,15 +611,19 @@ function lagUker(okter){
 // Samme regel som i appen: før kl. 12, ikke spist, etter do og uten klær
 function sammenlignbarVeiing(m){ return !!m.tid && new Date(m.tid).getHours() < 12 && m.spist === false && m.klaer === false && !!(m.do1 || m.do2); }
 
+// Trend, start og «nå» regnes bare fra sammenlignbare veiinger (en kveldsveiing med klær ga ellers
+// «+8 kg/uke»). Finnes færre enn to, brukes alle dagsverdiene.
 function vektTrend(){
-  if (D.vekt.length < 2) return null;
-  var siste = D.vekt[D.vekt.length - 1].x;
-  var utvalg = D.vekt.filter(function(p){ return p.x >= siste - 42 * DAG; });
-  if (utvalg.length < 2) utvalg = D.vekt.slice(-2);
+  var v = D.vekt.filter(function(p){ return p.sml; });
+  if (v.length < 2) v = D.vekt;
+  if (v.length < 2) return null;
+  var utvalg = v.filter(function(p){ return p.x >= Date.now() - 42 * DAG; });   // 6 uker fram til nå, ikke fra siste veiing
+  if (utvalg.length < 2) utvalg = v.slice(-2);
   var t = trend(utvalg.map(function(p){ return [p.x, p.y]; }));
   if (!t) return null;
-  var start = D.vekt[0].y, na = D.vekt[D.vekt.length - 1];
-  return { perUke: t.perDag * 7, perDag: t.perDag, start: start, na: na,
+  var start = v[0].y, na = v[v.length - 1];
+  return { perUke: t.perDag * 7, perDag: t.perDag, start: start, na: na, sml: v !== D.vekt,
+    dager: (utvalg[utvalg.length - 1].x - utvalg[0].x) / DAG,
     eta: function(mal){ return t.perDag < 0 && mal < na.y ? na.x + (na.y - mal) / -t.perDag * DAG : null; } };
 }
 
@@ -498,7 +635,9 @@ function tegnInnsikt(){
   function legg(tone, tekst){ ut.push('<li class="' + tone + '">' + tekst + '</li>'); }
   var siste = O[O.length - 1];
   if (siste){
-    var dager = Math.floor((Date.now() - siste.x) / DAG);
+    var iDag = new Date(); iDag.setHours(0, 0, 0, 0);
+    var dagen = new Date(siste.x); dagen.setHours(0, 0, 0, 0);
+    var dager = Math.round((iDag - dagen) / DAG);   // kalenderdager: en økt i går kveld er «i går» også neste morgen
     legg(dager > 7 ? 'warn' : 'info', 'Siste økt ' + (dager === 0 ? 'i dag' : dager === 1 ? 'i går' : 'for ' + dager + ' dager siden') + ': ' + mmss(siste.o.varighet_s) +
       ', ' + k(siste.o.kcal, 1) + ' kcal, ' + k(siste.spm) + ' skritt/min.');
   }
@@ -520,7 +659,8 @@ function tegnInnsikt(){
   var T = D.vektTrend;
   if (T){
     var neste = milepaeler().filter(function(m){ return m.vekt < T.na.y; })[0];
-    legg(T.perUke < 0 ? 'ok' : 'warn', 'Vekta går ' + (T.perUke < 0 ? 'ned' : 'opp') + ' ' + k(Math.abs(T.perUke), 2) + ' kg/uke (siste 6 uker), totalt ' +
+    legg(T.perUke < 0 ? 'ok' : 'warn', 'Vekta går ' + (T.perUke < 0 ? 'ned' : 'opp') + ' ' + k(Math.abs(T.perUke), 2) + ' kg/uke (' + (T.dager >= 35 ? 'siste 6 uker' : 'over ' + Math.max(1, Math.round(T.dager)) + (Math.round(T.dager) > 1 ? ' dager' : ' dag')) +
+      (T.sml ? '' : ', ikke sammenlignbare veiinger') + '), totalt ' +
       fortegn(T.na.y - T.start, 1) + ' kg.' + (neste && T.eta(neste.vekt) ? ' Neste milepæl: ' + neste.navn + ' (' + k(neste.vekt, 1) + ' kg) rundt ' + kd(T.eta(neste.vekt)).replace(/\.$/, '') + '.' : ''));
   }
   // Puls på R14 og pulsfall (når beltet har gitt nok data)
@@ -543,10 +683,12 @@ function tegnInnsikt(){
 function skala(tittel, verdi, tekst, min, max, soner, mal){
   var W = 400, x = function(v){ return (Math.min(max, Math.max(min, v)) - min) / (max - min) * W; };
   var s = '<div class="skala"><div class="skala-tittel"><span>' + tittel + '</span><b>' + tekst + '</b></div><svg viewBox="0 0 400 34">';
-  soner.forEach(function(z){ s += '<rect x="' + x(z[0]) + '" y="8" width="' + Math.max(0, x(z[1]) - x(z[0])) + '" height="10" fill="' + z[2] + '" opacity=".75"/>' +
+  soner.forEach(function(z){ var her = verdi != null && verdi >= z[0] && (verdi < z[1] || z[1] >= max);
+    s += '<rect x="' + x(z[0]) + '" y="9" width="' + Math.max(0, x(z[1]) - x(z[0])) + '" height="8" fill="' + z[2] + '" opacity="' + (her ? 1 : .38) + '"/>' +
     (z[3] ? '<text x="' + (x(z[0]) + 3) + '" y="31" font-size="9" fill="' + F.faint + '">' + z[3] + '</text>' : ''); });
   if (mal != null) s += '<line x1="' + x(mal) + '" x2="' + x(mal) + '" y1="3" y2="23" stroke="' + F.ink + '" stroke-dasharray="2 2"/>';
-  if (verdi != null) s += '<path d="M' + (x(verdi) - 5) + ' 0 h10 l-5 8z" fill="' + F.ink + '"/>';
+  if (verdi != null) s += '<line x1="' + x(verdi) + '" x2="' + x(verdi) + '" y1="6" y2="20" stroke="' + F.ink + '" stroke-width="2"/>' +
+    '<path d="M' + (x(verdi) - 6) + ' 0 h12 l-6 7z" fill="' + F.ink + '"/>';
   return s + '</svg></div>';
 }
 
@@ -632,7 +774,7 @@ function tegnKondisjon(){
   O.forEach(function(b){ Object.keys(b.rPuls).forEach(function(r){ nivaa[r] = (nivaa[r] || 0) + 1; }); });
   var liste = Object.keys(nivaa).sort(function(a, b){ return a - b; });
   var valgt = $('velg-r').value || (liste.indexOf('14') >= 0 ? '14' : liste[liste.length - 1]);
-  $('velg-r').innerHTML = liste.length ? liste.map(function(r){ return '<option value="' + r + '"' + (r === valgt ? ' selected' : '') + '>R' + r + ' (' + nivaa[r] + ')</option>'; }).join('') : '<option>ingen data ennå</option>';
+  $('velg-r').innerHTML = liste.length ? liste.map(function(r){ return '<option value="' + esc(r) + '"' + (r === valgt ? ' selected' : '') + '>R' + esc(r) + ' (' + esc(nivaa[r]) + ')</option>'; }).join('') : '<option>ingen data ennå</option>';
   var rp = O.filter(function(b){ return b.rPuls[valgt]; }).map(function(b){ return { x: b.x, y: b.rPuls[valgt] }; });
   graf('g-rpuls', 'scatter', [punkt('Økt', rp, F.red), linje('Snitt 3 økter', rullende(rp, 3), F.bad)], { enhet: 'slag/min', utenForklaring: true, x: xRamme(rp), tom: 'Kommer når økter er logget med pulsbelte', y: { suggestedMin: 110, suggestedMax: 160 } });
 
@@ -647,21 +789,24 @@ function tegnKondisjon(){
   graf('g-effekt', 'scatter', [punkt('Skritt per slag', eff, F.blue)], { des: 3, yDes: 2, utenForklaring: true, x: xRamme(eff), tom: 'Kommer når økter er logget med pulsbelte' });
 
   var hv = D.hvile.slice(), ok = D.oksymeter.slice();
-  var sistOk = ok[ok.length - 1];
-  $('hvile-kilde').textContent = sistOk && sistOk.spo2 != null ? 'siste SpO₂ ' + k(sistOk.spo2) + ' %' : 'klokka og oksymeter';
+  // Siste rad med SpO₂ (morgener med bare HRV har spo2 null), med dato
+  var sistS = D.kropp.filter(function(m){ return m.spo2 != null; }).pop();
+  $('hvile-kilde').textContent = sistS ? 'siste SpO₂ ' + k(sistS.spo2) + ' % (' + kd(sistS.x) + ')' : 'klokka og oksymeter';
   graf('g-hvile', 'scatter', [punkt('Klokka (døgn)', hv, F.faint, { pointRadius: 2.5 }), linje('Klokka, snitt 7 døgn', rullende(hv, 7), F.lilla),
-      punkt('Morgenmåling', ok, F.ok, { pointRadius: 4, pointStyle: 'rectRot' })],
+      punkt('Morgenmåling', ok, F.ok, { pointRadius: 4, pointStyle: 'rectRot', etter: function(r){ return r.spo2 != null ? 'SpO₂ ' + k(r.spo2) + ' %' : ''; } })],
     { enhet: 'slag/min', utenForklaring: !ok.length, tom: 'Slå på «Hent vekt og hvilepuls» og gi tilgang i appen', y: { suggestedMin: 50, suggestedMax: 85 },
       referanser: { linjer: D.profil.hvilepuls ? [{ y: D.profil.hvilepuls, tekst: 'profil ' + D.profil.hvilepuls, farge: F.faint, venstre: true }] : [] } });
 
-  // HRV: ukesnitt (midt i uka) og normalområde snitt ± 1 SD over siste 60 dager (minst 7 målinger)
+  // HRV: ukesnitt (midt i uka) og normalområde median ± 1,4826 × MAD (robust SD) over siste 60 dager
+  // (minst 7 målinger) — én uteligger dro ellers båndet fra 38–43 til 27–67
   var hrv = D.hrv, uker = {};
   hrv.forEach(function(p){ var u = ukeStart(p.x); (uker[u] = uker[u] || []).push(p.y); });
   var hrvUke = Object.keys(uker).map(Number).sort(function(a, b){ return a - b; })
-    .map(function(u){ return { x: u + 3.5 * DAG, y: snitt(uker[u]), n: uker[u].length }; });
+    .map(function(u){ return { x: Math.min(u + 3.5 * DAG, Date.now()), y: snitt(uker[u]), n: uker[u].length }; });   // inneværende uke ikke fram i tid
   var nye = hrv.filter(function(p){ return p.x > Date.now() - 60 * DAG; }).map(function(p){ return p.y; }), hrvBand = [];
   if (nye.length >= 7){
-    var m = snitt(nye), sd = Math.sqrt(snitt(nye.map(function(y){ return (y - m) * (y - m); })));
+    var med = function(l){ l = l.slice().sort(function(a, b){ return a - b; }); var h = l.length / 2; return l.length % 2 ? l[Math.floor(h)] : (l[h - 1] + l[h]) / 2; };
+    var m = med(nye), sd = 1.4826 * med(nye.map(function(y){ return Math.abs(y - m); }));
     hrvBand = [{ fra: m - sd, til: m + sd, farge: F.ok }];
   }
   var sistUke = hrvUke[hrvUke.length - 1];
@@ -676,40 +821,56 @@ function tegnKondisjon(){
     { type: 'bar', label: 'Skjermtid', data: B.map(function(b){ return { x: b.x, y: b.skjerm / 60 }; }), backgroundColor: F.blue, barThickness: 10, parsing: true, grouped: false, order: 2, tekst: function(y){ return k(y, 1) + ' t'; } },
     { type: 'bar', label: 'Etter kl. 22', data: B.map(function(b){ return { x: b.x, y: b.kveld / 60 }; }), backgroundColor: F.orange, barThickness: 10, parsing: true, grouped: false, order: 1, tekst: function(y){ return Math.round(y * 60) + ' min'; } },
     punkt('Siste bruk (høyre)', B.filter(function(b){ return b.siste != null; }).map(function(b){ return { x: b.x, y: b.siste }; }), F.lilla, { yAxisID: 'y2', pointStyle: 'rectRot', pointRadius: 5, order: 0, tekst: klokke })
-  ], { x: B.length ? { min: Math.max(B[0].x, B[B.length - 1].x - 60 * DAG) - DAG, max: B[B.length - 1].x + DAG } : {}, tom: 'Slå på «Mobilbruk» under Innstillinger i appen', y: { stacked: false, suggestedMin: 0, suggestedMax: 4, ticks: { callback: function(v){ return v + ' t'; } } },
+  ], { x: B.length ? { min: Math.max(B[0].x, B[B.length - 1].x - 60 * DAG) - DAG, max: B[B.length - 1].x + DAG } : {}, tom: brukFeil ? 'Kunne ikke hente mobilbruk: ' + brukFeil : 'Slå på «Mobilbruk» under Innstillinger i appen', y: { stacked: false, suggestedMin: 0, suggestedMax: 4, ticks: { callback: function(v){ return v + ' t'; } } },
     y2: { position: 'right', suggestedMin: 20, suggestedMax: 26, grid: { display: false }, ticks: { callback: klokke } } });
-  var uke = B.slice(-7);
-  if (uke.length){
-    var sistB = B[B.length - 1];
-    $('bruk-snitt').textContent = 'snitt ' + uke.length + ' døgn: ' + k(snitt(uke.map(function(b){ return b.skjerm; })) / 60, 1) + ' t';
+  // Snitt over de siste 7 kalenderdøgnene (ikke de 7 siste radene, som kunne være gamle)
+  var uke = B.filter(function(b){ return b.x > Date.now() - 8 * DAG; });
+  if (B.length){
+    var sistB = B[B.length - 1], gammel = Date.now() - sistB.x > 3 * DAG;
+    $('bruk-snitt').textContent = uke.length ? 'snitt ' + uke.length + ' døgn: ' + k(snitt(uke.map(function(b){ return b.skjerm; })) / 60, 1) + ' t'
+      : 'ingen data siste uke';
+    if (gammel) $('bruk-snitt').textContent += ' · siste data ' + kd(sistB.x) + ' — åpne appen for å laste opp';
     $('bruk-tekst').textContent = 'Siste døgn (' + kd(sistB.x) + '): ' + k(sistB.skjerm / 60, 1) + ' t skjerm, ' + sistB.kveld + ' min etter kl. 22, ' + sistB.opplasinger + ' opplåsinger' +
       (sistB.siste != null ? ', siste bruk ' + klokke(sistB.siste) : '') + (sistB.samtaleMin != null ? ', samtaler ' + Math.round(sistB.samtaleMin) + ' min' : '') +
       (sistB.topp.length ? '. Mest brukt: ' + sistB.topp.slice(0, 3).map(function(a){ return a.navn + ' ' + a.min + ' min'; }).join(', ') : '') + '.';
   }
 
   // E: Uth–Sørensen (15,3 × makspuls / hvilepuls). Grovt, ca. ±15 %.
-  // Morgenmålinger fra oksymeteret (siste 30 dager, minst 3) går foran klokka, så profilen.
-  var nyeOk = ok.filter(function(p){ return p.x > Date.now() - 30 * DAG; }).slice(-7);
-  var hvileKilde = nyeOk.length >= 3 ? 'snitt av ' + nyeOk.length + ' morgenmålinger med oksymeter' : hv.length ? 'snitt siste 7 døgn fra klokka' : 'fra profilen';
-  var hvile = nyeOk.length >= 3 ? snitt(nyeOk.map(function(p){ return p.y; })) : hv.length ? snitt(hv.slice(-7).map(function(p){ return p.y; })) : D.profil.hvilepuls;
+  // Morgenmålinger fra oksymeteret går foran klokka (søvnpuls er lavere og gir høyere VO₂). 90 dagers vindu, så
+  // kilden ikke bytter (og tallet hopper ~9) bare fordi det er en stund siden forrige oksymetermåling.
+  var nyeOk = ok.filter(function(p){ return p.x > Date.now() - 90 * DAG; }).slice(-7);
+  var hv7 = hv.filter(function(p){ return p.x > Date.now() - 7.5 * DAG; }).map(function(p){ return p.y; });   // 7 kalenderdøgn, ikke 7 siste rader
+  var hvileKilde = nyeOk.length >= 3 ? 'snitt av ' + nyeOk.length + ' morgenmålinger med oksymeter' : hv7.length ? 'snitt siste 7 døgn fra klokka' : 'fra profilen';
+  var hvile = nyeOk.length >= 3 ? snitt(nyeOk.map(function(p){ return p.y; })) : hv7.length ? snitt(hv7) : D.profil.hvilepuls;
   if (hvile){
     var vo2 = 15.3 * D.profil.makspuls / hvile;
+    var klokkaVo2 = nyeOk.length >= 3 && hv7.length ? 15.3 * D.profil.makspuls / snitt(hv7) : null;
     $('vo2-anslag').textContent = '≈ ' + k(vo2, 0) + ' ml/kg/min';
-    $('vo2-tekst').innerHTML = 'Uth–Sørensen-formelen: 15,3 × makspuls (' + D.profil.makspuls + ') / hvilepuls (' + k(hvile) + ', ' + hvileKilde +
-      '). Usikkerheten er stor (ca. ±15 %), særlig hvis makspulsen er anslått. Bruk den til å se retning over tid, ikke som fasit. NTNU-kalkulatoren til høyre er bedre validert.';
+    $('vo2-tekst').innerHTML = 'Uth–Sørensen-formelen: 15,3 × makspuls (' + D.profil.makspuls + (D.profil.makspulsAnslatt ? ', anslått' : '') + ') / hvilepuls (' + k(hvile) + ', ' + hvileKilde +
+      ').' + (klokkaVo2 ? ' Med klokkas søvnpuls blir det ≈ ' + k(klokkaVo2, 0) + '.' : '') +
+      ' Usikkerheten er stor (ca. ±15 %), særlig hvis makspulsen er anslått. Bruk den til å se retning over tid, ikke som fasit. NTNU-kalkulatoren til høyre er bedre validert.';
   } else $('vo2-tekst').textContent = 'Krever hvilepuls (fra klokka eller i profilen).';
   var ntnu = D.ntnu.map(function(m){ return { x: m.x, y: m.vo2maks }; });
-  graf('g-vo2', 'scatter', [linje('NTNU kondisjonstall', ntnu, F.ok, { pointRadius: 4 })], { des: 1, enhet: 'ml/kg/min', utenForklaring: true, x: xRamme(ntnu), tom: 'Ingen resultater lagt inn ennå' });
+  // Klokkas VO₂maks-anslag (Samsung Health) i samme graf, når det finnes
+  var vo2k = D.klokke.filter(function(d){ return d.vo2maks != null; }).map(function(d){ return { x: d.x, y: d.vo2maks }; });
+  graf('g-vo2', 'scatter', [linje('NTNU kondisjonstall', ntnu, F.ok, { pointRadius: 4 }), punkt('Klokka', vo2k, F.faint)],
+    { des: 1, enhet: 'ml/kg/min', utenForklaring: !vo2k.length, x: xRamme(ntnu.concat(vo2k)), tom: 'Ingen resultater lagt inn ennå' });
 }
 
 async function lagreNtnu(){
   var d = $('ntnu-dato').value, vo2 = parseFloat(String($('ntnu-vo2').value).replace(',', '.')), alder = parseFloat($('ntnu-alder').value);
   if (!d || isNaN(vo2)){ alert('Fyll inn dato og kondisjonstall.'); return; }
+  if (vo2 < 10 || vo2 > 90){ alert('Kondisjonstallet ser feil ut (vanlig 20–60 ml/kg/min).'); return; }
+  if (!isNaN(alder) && (alder < 10 || alder > 110)){ alert('Kondisjonsalderen ser feil ut.'); return; }
+  if (D.ntnu.some(function(m){ return m.dato === d; }) && !confirm('Det finnes allerede et resultat for ' + d + '. Erstatte det?')) return;
+  $('ntnu-lagre').disabled = true;
+  try {
   await rest('POST', 'trening_kroppsmaal?on_conflict=id', [{ id: 'ntnu-' + d, dato: d, vekt_kg: null, midje_cm: null, hvilepuls: null,
     vo2maks: vo2, kondisjonsalder: isNaN(alder) ? null : alder, kilde: 'ntnu', endret: Date.now(), slettet: false }],
     { Prefer: 'resolution=merge-duplicates,return=minimal' });
   $('ntnu-vo2').value = ''; $('ntnu-alder').value = '';
   await last(); tegnAlt();
+  } finally { $('ntnu-lagre').disabled = false; }
 }
 
 /* ================================================================
@@ -720,23 +881,30 @@ function tegnKropp(){
   var ms = milepaeler(), sett = [punkt('Vekt', D.vekt, F.blue, { pointStyle: D.vekt.map(function(p){ return p.sml ? 'rectRot' : 'circle'; }) }),
     linje('', D.vekt, F.blue, { tension: 0, borderWidth: 2 }), punkt('Andre veiinger', D.vektAndre, F.faint, { pointRadius: 2.5 })];
   var maxX = D.vekt.length ? D.vekt[D.vekt.length - 1].x : Date.now();
+  // Milepæler ut fra nåværende vekt: den siste passerte og de tre neste, pluss «Ditt mål» alltid
+  var naVekt = T ? T.na.y : D.vekt.length ? D.vekt[D.vekt.length - 1].y : 0;
+  var under = ms.filter(function(m){ return m.vekt < naVekt; });
+  var vis = ms.filter(function(m){ return m.vekt >= naVekt; }).slice(-1).concat(under.slice(0, 3));
+  ms.forEach(function(m){ if (m.navn === 'Ditt mål' && vis.indexOf(m) < 0) vis.push(m); });
+  vis.sort(function(a, b){ return b.vekt - a.vekt; });
   if (T && T.perDag < 0){
-    var mal = ms.filter(function(m){ return m.vekt < T.na.y; }).slice(0, 3).pop();
+    var mal = under.slice(0, 3).pop();   // står alltid i vis
     var slutt = mal && T.eta(mal.vekt);
     if (slutt && slutt - T.na.x < 400 * DAG){
       sett.push(linje('Framskriving', [{ x: T.na.x, y: T.na.y }, { x: slutt, y: mal.vekt }], F.blue, { borderDash: [6, 5], borderWidth: 1.5 }));
       maxX = slutt;
     }
   }
-  var lav = Math.min.apply(null, ms.slice(0, 4).map(function(m){ return m.vekt; }).concat(D.vekt.map(function(p){ return p.y; })));
-  var hoy = Math.max.apply(null, D.vekt.map(function(p){ return p.y; }).concat([lav + 5]));
+  var alleY = D.vekt.concat(D.vektAndre).map(function(p){ return p.y; });   // grå veiinger klippes ikke
+  var lav = Math.min.apply(null, vis.map(function(m){ return m.vekt; }).concat(alleY));
+  var hoy = Math.max.apply(null, alleY.concat([lav + 5]));
   $('vekt-tempo').textContent = T ? fortegn(T.perUke, 2) + ' kg/uke' : '';
   graf('g-vekt', 'scatter', sett, {
     des: 1, enhet: 'kg', utenForklaring: true, x: { max: maxX + 3 * DAG },
     y: { min: Math.floor(lav - 2), max: Math.ceil(hoy + 2) },
     referanser: {
       band: h2 ? [{ fra: 25 * h2, til: 30 * h2, farge: F.warn }, { fra: 30 * h2, til: 999, farge: F.bad }] : [],
-      linjer: ms.slice(0, 4).map(function(m, i){ return { y: m.vekt, tekst: m.navn + ' ' + k(m.vekt, 1), farge: m.navn === 'Ditt mål' ? F.ink : m.navn.indexOf('KMI') === 0 ? F.bad : F.teal, venstre: i % 2 === 1, under: i % 2 === 1 }; })
+      linjer: vis.map(function(m, i){ return { y: m.vekt, tekst: m.navn + ' ' + k(m.vekt, 1), farge: m.navn === 'Ditt mål' ? F.ink : m.navn.indexOf('KMI') === 0 ? F.bad : F.teal, venstre: i % 2 === 1, under: i % 2 === 1 }; })
     }
   });
   var lin = [{ y: GRENSER.midjeBukfedme, tekst: 'bukfedme ' + GRENSER.midjeBukfedme, farge: F.bad }, { y: GRENSER.midjeRisiko, tekst: 'økt risiko ' + GRENSER.midjeRisiko, farge: F.warn }];
@@ -759,6 +927,22 @@ function tegnKropp(){
     referanser: { linjer: lin, band: [{ fra: GRENSER.midjeBukfedme, til: 999, farge: F.bad }, { fra: GRENSER.midjeRisiko, til: GRENSER.midjeBukfedme, farge: F.warn }].concat(
       H ? [{ fra: GRENSER.midjeHoydeHoy * H, til: 999, farge: F.red }] : []) }
   });
+  // Blodtrykk: hver måling som punkt, linje gjennom snittet per døgn (kl. 12). Grense for hjemmemåling 135/85.
+  var bt = D.bt, perDog = {};
+  bt.forEach(function(p){ (perDog[p.dato] = perDog[p.dato] || []).push(p); });
+  var dogn = Object.keys(perDog).sort().map(function(d){ var l = perDog[d];
+    return { x: msFra(d), sys: snitt(l.map(function(p){ return p.sys; })), dia: snitt(l.map(function(p){ return p.dia; })) }; });
+  var sistBt = bt[bt.length - 1];
+  $('bt-siste').textContent = sistBt ? 'siste ' + sistBt.sys + '/' + sistBt.dia + (sistBt.puls != null ? ', puls ' + sistBt.puls : '') + ' (' + kd(sistBt.x) + ')' : '';
+  var pulsTekst = function(r){ return r.puls != null ? 'puls ' + r.puls : ''; };
+  graf('g-bt', 'scatter', [
+      punkt('Systolisk', bt.map(function(p){ return { x: p.x, y: p.sys, puls: p.puls }; }), F.red, { etter: pulsTekst }),
+      punkt('Diastolisk', bt.map(function(p){ return { x: p.x, y: p.dia, puls: p.puls }; }), F.blue, { etter: pulsTekst }),
+      linje('Snitt per døgn', dogn.map(function(p){ return { x: p.x, y: p.sys }; }), F.red, { tension: 0, cubicInterpolationMode: 'default' }),
+      linje('', dogn.map(function(p){ return { x: p.x, y: p.dia }; }), F.blue, { tension: 0, cubicInterpolationMode: 'default' })],
+    { enhet: 'mmHg', x: xRamme(bt), tom: 'Ta bilde av blodtrykksmåleren fra morgenkortet i appen', y: { suggestedMin: 60, suggestedMax: 150 },
+      referanser: { linjer: [{ y: 135, tekst: '135', farge: F.warn, venstre: true }, { y: 85, tekst: '85', farge: F.warn, venstre: true }] } });
+
   var na = D.vekt.length ? D.vekt[D.vekt.length - 1].y : null;
   $('milepaeler').innerHTML = ms.map(function(m){
     var naadd = na != null && na <= m.vekt, eta = T && !naadd ? T.eta(m.vekt) : null;
@@ -795,7 +979,7 @@ function tegnSammenligning(){
 }
 function beste(){
   var O = D.okter, i = 0;
-  O.forEach(function(b, j){ if ((b.o.kcal || 0) > (O[i].o.kcal || 0)) i = j; });
+  O.forEach(function(b, j){ if (!b.o.kcal_ca && (b.o.kcal || 0) > (O[i].o.kcal_ca ? 0 : O[i].o.kcal || 0)) i = j; });
   return { i: i };
 }
 
@@ -808,7 +992,7 @@ function tegnRekorder(){
     return '<tr><td class="v">' + navn + '</td><td>' + fmt(f(best)) + '</td><td class="v gra">' + dato(best.x) + '</td></tr>';
   }
   $('rekorder').innerHTML = [
-    rek('Flest kcal', O, function(b){ return b.o.kcal; }, false, function(v){ return k(v, 1) + ' kcal'; }),
+    rek('Flest kcal', O.filter(function(b){ return !b.o.kcal_ca; }), function(b){ return b.o.kcal; }, false, function(v){ return k(v, 1) + ' kcal'; }),
     rek('Høyest kcal/min (sammenlignbare)', O.filter(function(b){ return b.kcalSammenlign; }), function(b){ return b.kpm; }, false, function(v){ return k(v, 1); }),
     rek('Høyest tempo', O, function(b){ return b.spm; }, false, function(v){ return k(v) + ' skritt/min'; }),
     rek('Flest skritt', O, function(b){ return b.o.skritt; }, false, function(v){ return k(v); }),
@@ -820,7 +1004,7 @@ function tegnRekorder(){
 function tegnTabell(){
   var O = D.okter;
   $('rader').innerHTML = O.slice().reverse().map(function(b){
-    var o = b.o, f3 = o.skritt_per_min != null ? o.skritt_per_min + ' spm' : o.watt != null ? o.watt + ' W' : o.motstand_konsoll != null ? 'R' + o.motstand_konsoll : '–';
+    var o = b.o, f3 = o.skritt_per_min != null ? k(o.skritt_per_min) + ' spm' : o.watt != null ? k(o.watt) + ' W' : o.motstand_konsoll != null ? 'R' + k(o.motstand_konsoll) : '–';
     var kilde = o.kilde || 'app';
     var puls = b.pulsKilde === 'belte' ? k(b.snittPuls) : b.pulsKilde === 'observasjon' ? '<span class="gra" title="fra pulsobservasjon i loggen">~' + k(b.snittPuls) + '</span>' : '–';
     return '<tr><td class="v">' + esc(dato(b.x)) + '</td><td>' + mmss(o.varighet_s) + '</td><td>' + k(o.skritt) + '</td><td>' + k(b.spm) +
@@ -845,11 +1029,209 @@ function fyllSammenligningsvalg(){
 /* ================================================================
    Start
    ================================================================ */
+// Fire nøkkeltall øverst på Oversikt (samme tall som innsikt og målere)
+// Klokkedata (trening_klokke): én rad per døgn med data som jsonb
+var TRENINGSTYPE = { 0: 'Annen trening', 8: 'Sykling', 9: 'Sykkel inne', 25: 'Ellipse', 37: 'Fottur', 56: 'Løping', 57: 'Tredemølle',
+  70: 'Styrke', 74: 'Svømming', 79: 'Gåtur', 83: 'Yoga' };
+function timerTekst(min){ if (min == null) return '–'; var t = Math.floor(min / 60), m = Math.round(min % 60); return t + ' t ' + (m < 10 ? '0' : '') + m + ' min'; }
+function klokkeTekst(t){ t = ((t % 24) + 24) % 24; var h = Math.floor(t), m = Math.round((t - h) * 60); if (m === 60){ h = (h + 1) % 24; m = 0; } return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m; }
+function tegnKlokke(){
+  var lok = new Date(); lok.setMinutes(lok.getMinutes() - lok.getTimezoneOffset());   // lokal dato, ikke UTC
+  var K = D.klokke, iDag = msFra(lok.toISOString().slice(0, 10)), ut = [];
+  function siste(n, f){ return K.filter(function(d){ return d.x >= iDag - n * DAG && d.x < iDag && f(d) != null; }).map(f); }
+  function nk(tone, navn, tall, enhet, under){ ut.push('<div class="nk ' + tone + '"><small>' + navn + '</small><b>' + tall + '<span>' + enhet + '</span></b><em>' + under + '</em></div>'); }
+
+  // Nøkkeltall: snitt siste 7 hele døgn
+  var sov7 = siste(7, function(d){ return d.sovn ? d.sovn.hoved_min : null; }), skr7 = siste(7, function(d){ return d.skritt; });
+  var spo = K.filter(function(d){ return d.spo2_snitt != null; }).pop(), hrv7 = siste(7, function(d){ return d.hrv; });
+  var s = snitt(sov7);
+  nk(s == null ? '' : s >= 420 ? 'ok' : s < 360 ? 'warn' : '', 'Søvn, 7 netter', s == null ? '–' : timerTekst(s).replace(' min', ''), '', s == null ? 'ingen søvndata' : 'snitt hovedsøvn');
+  var sk = snitt(skr7);
+  nk(sk == null ? '' : sk >= 8000 ? 'ok' : sk < 5000 ? 'warn' : '', 'Skritt, 7 døgn', sk == null ? '–' : k(sk), '', sk == null ? 'ingen skrittdata' : 'snitt per døgn');
+  nk(spo && spo.spo2_min != null && spo.spo2_min < 90 ? 'warn' : '', 'SpO₂ om natta', spo ? k(spo.spo2_snitt, 1) : '–', spo ? ' %' : '', spo ? 'laveste ' + k(spo.spo2_min) + ' % (' + kd(spo.x) + ')' : 'ingen målinger');
+  var h = snitt(hrv7);
+  nk('', 'HRV fra klokka', h == null ? '–' : k(h), h == null ? '' : ' ms', h == null ? 'ingen målinger' : 'snitt 7 døgn');
+  $('nokkel-klokke').innerHTML = ut.join('');
+
+  // Søvn i faser (timer), stablet
+  var sn = K.filter(function(d){ return d.sovn; });
+  var harFaser = sn.some(function(d){ return d.sovn.dyp_min != null; });
+  var tt = function(y){ return timerTekst(y * 60); };
+  var bar = function(navn, felt, farge){ return { label: navn, data: sn.map(function(d){ return { x: d.x, y: (d.sovn[felt] || 0) / 60, d: d }; }), backgroundColor: farge, stack: 's', tekst: tt }; };
+  var sett = harFaser ? [bar('Dyp', 'dyp_min', F.blue), bar('REM', 'rem_min', F.lilla), bar('Lett', 'lett_min', '#4a6fa5'), bar('Våken', 'vaken_min', F.faint)] : [bar('Søvn', 'hoved_min', F.blue)];
+  sett[sett.length - 1].etter = function(r){ var o = r.d.sovn; return klokkeTekst(new Date(o.start).getHours() + new Date(o.start).getMinutes() / 60) + '–' + klokkeTekst(new Date(o.slutt).getHours() + new Date(o.slutt).getMinutes() / 60) +
+    ' · sov ' + timerTekst(o.hoved_min) + (o.min > o.hoved_min + 5 ? ' (+ lur ' + timerTekst(o.min - o.hoved_min) + ')' : ''); };
+  $('sovn-snitt').textContent = s != null ? 'snitt 7 netter ' + timerTekst(s) : '';
+  var xs = sn.length ? { min: Math.max(sn[0].x, sn[sn.length - 1].x - 60 * DAG) - DAG, max: sn[sn.length - 1].x + DAG } : {};
+  graf('g-sovn', 'bar', sett, { x: Object.assign({ stacked: true }, xs), y: { stacked: true, suggestedMin: 0, suggestedMax: 10, ticks: { callback: function(v){ return v + ' t'; } } },
+    tom: 'Gi tilgang til søvn i Health Connect (Innstillinger i appen)', referanser: { band: [{ fra: 7, til: 9, farge: F.ok }] } });
+  stolpebredde('g-sovn', xs);
+
+  // Leggetid og oppvåkning som klokkeslett; leggetid etter midnatt regnes som 24+
+  var legg = sn.map(function(d){ var t = new Date(d.sovn.start); var h = t.getHours() + t.getMinutes() / 60; return { x: d.x, y: h < 15 ? h + 24 : h }; });
+  var opp = sn.map(function(d){ var t = new Date(d.sovn.slutt); return { x: d.x, y: 24 + t.getHours() + t.getMinutes() / 60 }; });
+  var sd = function(l){ var m = snitt(l); return l.length > 2 ? Math.sqrt(snitt(l.map(function(v){ return (v - m) * (v - m); }))) : null; };
+  var l14 = legg.filter(function(p){ return p.x >= iDag - 14 * DAG; }).map(function(p){ return p.y; });
+  $('sovn-tider').textContent = l14.length > 2 ? 'leggetid varierer ±' + Math.round(sd(l14) * 60) + ' min (14 netter)' : '';
+  graf('g-sovntid', 'scatter', [punkt('Leggetid', legg, F.lilla, { tekst: klokkeTekst }), punkt('Oppvåkning', opp, F.aksent, { tekst: klokkeTekst }),
+      linje('', rullende(legg, 7), F.lilla, { borderWidth: 1.5 }), linje('', rullende(opp, 7), F.aksent, { borderWidth: 1.5 })],
+    { x: xs, y: { reverse: true, ticks: { stepSize: 2, callback: function(v){ return klokkeTekst(v); } } }, tom: 'Gi tilgang til søvn i Health Connect' });
+
+  // Skritt per døgn + snitt 7 døgn
+  var sk1 = K.filter(function(d){ return d.skritt != null; });
+  var skP = sk1.map(function(d){ return { x: d.x, y: d.skritt, d: d }; });
+  $('skritt-snitt').textContent = sk != null ? 'snitt 7 døgn ' + k(sk) : '';
+  var xk = sk1.length ? { min: Math.max(sk1[0].x, sk1[sk1.length - 1].x - 60 * DAG) - DAG, max: sk1[sk1.length - 1].x + DAG } : {};
+  graf('g-skritt', 'scatter', [
+      { type: 'bar', label: 'Skritt', data: skP, backgroundColor: F.teal, parsing: true, grouped: false, order: 2,
+        etter: function(r){ return [r.d.distanse_km != null ? k(r.d.distanse_km, 1) + ' km' : null, r.d.etasjer ? k(r.d.etasjer) + ' etasjer' : null, r.x >= iDag ? 'dagen er ikke ferdig' : null].filter(Boolean).join(' · '); } },
+      linje('Snitt 7 døgn', rullende(skP.filter(function(p){ return p.x < iDag; }), 7), F.aksent, { order: 1 })],
+    { x: xk, y: { suggestedMin: 0 }, tom: 'Gi tilgang til skritt i Health Connect', referanser: { linjer: [{ y: 8000, tekst: '8000', farge: F.ok, venstre: true }] } });
+  stolpebredde('g-skritt', xk);
+
+  // SpO₂ om natta og pust
+  var sp = K.filter(function(d){ return d.spo2_snitt != null; }), pu = K.filter(function(d){ return d.respirasjon != null; });
+  $('spo2-siste').textContent = spo ? 'siste ' + k(spo.spo2_snitt, 1) + ' %' : '';
+  var xo = xRamme(sp.concat(pu));
+  graf('g-spo2natt', 'scatter', [linje('SpO₂ snitt', sp.map(function(d){ return { x: d.x, y: d.spo2_snitt }; }), F.blue, { pointRadius: 3, tekst: function(y){ return k(y, 1) + ' %'; } }),
+      punkt('SpO₂ laveste', sp.filter(function(d){ return d.spo2_min != null; }).map(function(d){ return { x: d.x, y: d.spo2_min }; }), F.red, { tekst: function(y){ return k(y) + ' %'; } }),
+      linje('Pust', pu.map(function(d){ return { x: d.x, y: d.respirasjon }; }), F.teal, { pointRadius: 2, yAxisID: 'y2', tekst: function(y){ return k(y, 1) + ' /min'; } })],
+    { x: xo, y: { suggestedMin: 88, suggestedMax: 100 }, tom: 'Gi tilgang til oksygen og pust i Health Connect',
+      y2: { position: 'right', grid: { display: false }, suggestedMin: 10, suggestedMax: 20, ticks: { callback: function(v){ return v + '/min'; } } },
+      referanser: { linjer: [{ y: 90, tekst: '90 %', farge: F.warn, venstre: true }] } });
+
+  // HRV og hvilepuls fra klokka
+  var hr = K.filter(function(d){ return d.hrv != null; }), hp = K.filter(function(d){ return d.hvilepuls != null; });
+  $('hrv-klokke').textContent = h != null ? 'HRV snitt 7 døgn ' + k(h) + ' ms' : '';
+  var hrP = hr.map(function(d){ return { x: d.x, y: d.hrv }; }), hpP = hp.map(function(d){ return { x: d.x, y: d.hvilepuls }; });
+  graf('g-hrvklokke', 'scatter', [punkt('HRV', hrP, F.faint, { tekst: function(y){ return k(y) + ' ms'; } }), linje('HRV, snitt 7 døgn', rullende(hrP, 7), F.teal, { tekst: function(y){ return k(y) + ' ms'; } }),
+      linje('Hvilepuls', hpP, F.red, { pointRadius: 2, yAxisID: 'y2', tekst: function(y){ return k(y) + ' slag/min'; } })],
+    { x: xRamme(hrP.concat(hpP)), y: { suggestedMin: 20, suggestedMax: 70 }, tom: 'Gi tilgang til HRV og hvilepuls i Health Connect',
+      y2: { position: 'right', grid: { display: false }, suggestedMin: 50, suggestedMax: 80 } });
+
+  // Puls hele døgnet
+  var pd = K.filter(function(d){ return d.puls; });
+  var pdS = pd.map(function(d){ return { x: d.x, y: d.puls.snitt, d: d }; });
+  var sp7 = siste(7, function(d){ return d.puls ? d.puls.snitt : null; });
+  $('puls-dogn').textContent = sp7.length ? 'snitt 7 døgn ' + k(snitt(sp7)) + ' slag/min' : '';
+  var xp = pd.length ? { min: Math.max(pd[0].x, pd[pd.length - 1].x - 60 * DAG) - DAG, max: pd[pd.length - 1].x + DAG } : {};
+  graf('g-pulsdogn', 'scatter', [
+      linje('Snitt', pdS, F.red, { pointRadius: 3, etter: function(r){ return r.d.puls.minutter ? timerTekst(r.d.puls.minutter) + ' med måling' + (r.x >= iDag ? ' · dagen er ikke ferdig' : '') : ''; } }),
+      punkt('Laveste', pd.map(function(d){ return { x: d.x, y: d.puls.min }; }), F.blue),
+      punkt('Høyeste', pd.map(function(d){ return { x: d.x, y: d.puls.maks }; }), F.orange)],
+    { enhet: 'slag/min', x: xp, y: { suggestedMin: 40, suggestedMax: 160 }, tom: 'Ingen pulsdata fra klokka ennå',
+      referanser: { linjer: [{ y: D.profil.makspuls, tekst: 'makspuls ' + D.profil.makspuls, farge: F.faint, venstre: true }] } });
+
+  // Døgnkurve: snitt per time, siste 7 døgn mot de 30 før
+  function timesnitt(fra, til){
+    var sum = [], n = [];
+    pd.filter(function(d){ return d.x >= fra && d.x < til; }).forEach(function(d){
+      (d.puls.timer || []).forEach(function(v, t){ if (v != null){ sum[t] = (sum[t] || 0) + v; n[t] = (n[t] || 0) + 1; } });
+    });
+    var ut = [];
+    for (var t = 0; t < 24; t++) if (n[t]) ut.push({ x: t + .5, y: sum[t] / n[t] });
+    return ut;
+  }
+  var t7 = timesnitt(iDag - 7 * DAG, iDag + DAG), t30 = timesnitt(iDag - 37 * DAG, iDag - 7 * DAG);
+  var natt = t7.filter(function(p){ return p.x < 6; });
+  $('puls-kurve').textContent = natt.length ? 'natt (00–06) ' + k(snitt(natt.map(function(p){ return p.y; }))) + ' slag/min' : '';
+  graf('g-pulstime', 'scatter', [linje('Siste 7 døgn', t7, F.red, { pointRadius: 2.5 }), linje('De 30 før', t30, F.faint, { borderDash: [5, 4] })],
+    { enhet: 'slag/min', xTekst: function(v){ var t = Math.floor(v); return (t < 10 ? '0' : '') + t + ':00'; },
+      x: { min: 0, max: 24, ticks: { stepSize: 3, callback: function(v){ return (v < 10 ? '0' : '') + v; } } }, y: { suggestedMin: 50, suggestedMax: 100 }, tom: 'Ingen pulsdata fra klokka ennå' });
+
+  // Hudtemperatur: avvik fra grunnlinjen
+  var hu = K.filter(function(d){ return d.hudtemp && d.hudtemp.avvik != null; });
+  var sh = hu[hu.length - 1];
+  $('hud-siste').textContent = sh ? 'siste ' + (sh.hudtemp.avvik > 0 ? '+' : '') + k(sh.hudtemp.avvik, 1) + ' °C (' + kd(sh.x) + ')' : '';
+  graf('g-hud', 'scatter', [linje('Avvik', hu.map(function(d){ return { x: d.x, y: d.hudtemp.avvik, d: d }; }), F.orange, { pointRadius: 3,
+      tekst: function(y){ return (y > 0 ? '+' : '') + k(y, 2) + ' °C'; }, etter: function(r){ return r.d.hudtemp.grunnlinje != null ? 'grunnlinje ' + k(r.d.hudtemp.grunnlinje, 1) + ' °C' : ''; } })],
+    { x: xRamme(hu), yDes: 1, y: { suggestedMin: -1.5, suggestedMax: 1.5 },
+      tom: klokkeHud === 'ikke_stottet' ? 'Health Connect på telefonen støtter ikke hudtemperatur ennå' : 'Ingen hudtemperatur fra klokka ennå',
+      referanser: { linjer: [{ y: 0, tekst: 'grunnlinje', farge: F.faint, venstre: true }, { y: 1, tekst: '+1 °C', farge: F.warn, venstre: true }] } });
+
+  // Kroppssammensetning
+  var fe = K.filter(function(d){ return d.fett_pst != null; }), mu = K.filter(function(d){ return d.muskel_kg != null; });
+  var sf = fe[fe.length - 1];
+  $('kropp-klokke').textContent = sf ? 'siste ' + k(sf.fett_pst, 1) + ' % fett (' + kd(sf.x) + ')' : '';
+  graf('g-sammensetning', 'scatter', [linje('Fett', fe.map(function(d){ return { x: d.x, y: d.fett_pst, d: d }; }), F.orange, { pointRadius: 3, tekst: function(y){ return k(y, 1) + ' %'; },
+        etter: function(r){ return [r.d.vann_kg != null ? 'vann ' + k(r.d.vann_kg, 1) + ' kg' : null, r.d.ben_kg != null ? 'ben ' + k(r.d.ben_kg, 1) + ' kg' : null, r.d.bmr_kcal != null ? 'hvileforbruk ' + k(r.d.bmr_kcal) + ' kcal' : null].filter(Boolean).join(' · '); } }),
+      linje('Fettfri masse', mu.map(function(d){ return { x: d.x, y: d.muskel_kg }; }), F.teal, { pointRadius: 3, yAxisID: 'y2', tekst: function(y){ return k(y, 1) + ' kg'; } })],
+    { x: xRamme(fe.concat(mu)), tom: 'Ingen målinger av kroppssammensetning ennå',
+      y2: { position: 'right', grid: { display: false }, ticks: { maxTicksLimit: 6, callback: function(v){ return k(v, 1) + ' kg'; } } } });
+
+  // Energi
+  var ak = K.filter(function(d){ return d.aktive_kcal != null || d.totale_kcal != null; });
+  var ak7 = siste(7, function(d){ return d.aktive_kcal; });
+  $('energi-snitt').textContent = ak7.length ? 'aktive snitt 7 døgn ' + k(snitt(ak7)) + ' kcal' : '';
+  var xe = ak.length ? { min: Math.max(ak[0].x, ak[ak.length - 1].x - 60 * DAG) - DAG, max: ak[ak.length - 1].x + DAG } : {};
+  graf('g-energi', 'scatter', [
+      { type: 'bar', label: 'Aktive kcal', data: ak.filter(function(d){ return d.aktive_kcal != null; }).map(function(d){ return { x: d.x, y: d.aktive_kcal, d: d }; }), backgroundColor: F.orange, parsing: true, grouped: false, order: 2,
+        tekst: function(y){ return k(y) + ' kcal'; }, etter: function(r){ return [r.d.mat_kcal ? 'mat ' + k(r.d.mat_kcal) + ' kcal' : null, r.d.vann_l ? 'vann ' + k(r.d.vann_l, 1) + ' l' : null].filter(Boolean).join(' · '); } },
+      linje('Totalt', ak.filter(function(d){ return d.totale_kcal != null; }).map(function(d){ return { x: d.x, y: d.totale_kcal }; }), F.soft, { pointRadius: 2, yAxisID: 'y2', order: 1, tekst: function(y){ return k(y) + ' kcal'; } })],
+    { x: xe, y: { suggestedMin: 0 }, tom: 'Gi tilgang til kalorier i Health Connect',
+      y2: { position: 'right', grid: { display: false }, suggestedMin: 0 } });
+  stolpebredde('g-energi', xe);
+
+  // Treninger fra klokka, nyeste først; «også i appen» hvis en app-økt startet innen 20 min
+  var tr = [];
+  K.forEach(function(d){ (d.treninger || []).forEach(function(t){ tr.push(t); }); });
+  tr.sort(function(a, b){ return b.start - a.start; });
+  $('klokke-treninger').innerHTML = tr.slice(0, 40).map(function(t){
+    var app = D.okter.some(function(b){ return Math.abs(b.o.start - t.start) < 20 * 60000; });
+    return '<tr><td class="v">' + dato(t.start) + ' ' + klokkeTekst(new Date(t.start).getHours() + new Date(t.start).getMinutes() / 60) + '</td><td class="v">' + (TRENINGSTYPE[t.type] || 'Type ' + t.type) +
+      '</td><td>' + t.min + ' min</td><td class="v">' + (app ? '✓' : '') + '</td><td class="v gra">' + esc(t.tittel || '') + '</td></tr>';
+  }).join('') || '<tr><td class="v gra" colspan="5">Ingen treninger fra klokka ennå (krever tilgang til trening i Health Connect).</td></tr>';
+  var apper = {};
+  K.forEach(function(d){ Object.keys(d.kilder || {}).forEach(function(t){ apper[d.kilder[t]] = true; }); });
+  $('klokke-kilder').textContent = K.length ? K.length + ' døgn med data, fra ' + Object.keys(apper).map(function(a){ return APPNAVN[a] || a; }).join(', ') + '.' :
+    klokkeFeil ? 'Kunne ikke hente klokkedata: ' + klokkeFeil : 'Ingen klokkedata ennå. I appen: Innstillinger → Health Connect → «Hent data fra klokka og vekta» og «Gi tilgang».';
+}
+var APPNAVN = { 'com.sec.android.app.shealth': 'Samsung Health', 'com.google.android.apps.fitness': 'Google Fit', 'com.google.android.apps.healthdata': 'Health Connect',
+  'com.fitbit.FitbitMobile': 'Fitbit', 'com.garmin.android.apps.connectmobile': 'Garmin Connect', 'com.renpho.health': 'Renpho' };
+// Stolper på lineær tidsakse: fast bredde etter hvor mange døgn som vises
+function stolpebredde(id, x){
+  var g = grafer[id]; if (!g || x.min == null) return;
+  var b = Math.max(3, Math.min(18, $(id).clientWidth / ((x.max - x.min) / DAG) * .7));
+  g.data.datasets.forEach(function(ds){ if (ds.type === 'bar' || g.config.type === 'bar') ds.barThickness = b; });
+  g.update();
+}
+
+function tegnNokkel(){
+  var U = D.uker, denne = U[U.length - 1], forrige = U[U.length - 2], T = D.vektTrend, O = D.okter, ut = [];
+  function nk(tone, navn, tall, enhet, under, underTone){
+    ut.push('<div class="nk ' + tone + '"><small>' + navn + '</small><b>' + tall + '<span>' + enhet + '</span></b><em class="' + (underTone || '') + '">' + under + '</em></div>');
+  }
+  nk(denne.ekv >= GRENSER.ukeMin ? 'ok' : '', 'Denne uka', Math.round(denne.ekv), ' / 150 min', forrige ? 'forrige ' + Math.round(forrige.ekv) : '');
+  if (T) nk(T.perUke < 0 ? 'ok' : 'warn', 'Vekt', k(T.na.y, 1), ' kg', fortegn(T.perUke, 2) + ' kg/uke', T.perUke < 0 ? 'ok' : 'warn');
+  else nk('', 'Vekt', '–', '', 'ingen veiinger');
+  var spm = O.filter(function(b){ return b.spm; });
+  if (spm.length >= 4){
+    var a = snitt(spm.slice(-4).map(function(b){ return b.spm; })), f = spm.length >= 8 ? snitt(spm.slice(-8, -4).map(function(b){ return b.spm; })) : null;
+    nk('', 'Tempo, 4 økter', k(a), ' spm', f ? fortegn(pst(a, f), 1) + ' % mot de 4 før' : 'skritt per minutt');
+  }
+  var siste = O[O.length - 1];
+  if (siste){
+    var iDag = new Date(); iDag.setHours(0, 0, 0, 0);
+    var dagen = new Date(siste.x); dagen.setHours(0, 0, 0, 0);
+    var dager = Math.round((iDag - dagen) / DAG);
+    nk(dager > 7 ? 'warn' : '', 'Siste økt', dager === 0 ? 'I dag' : dager === 1 ? 'I går' : dager, dager > 1 ? ' dager siden' : '',
+      mmss(siste.o.varighet_s) + ' · ' + k(siste.o.kcal, 0) + ' kcal');
+  }
+  $('nokkel').innerHTML = ut.join('');
+}
+
 function tegnAlt(){
-  if (!D.okter.length){ $('innsikt').innerHTML = '<li>Ingen økter ennå.</li>'; return; }
-  tegnInnsikt(); tegnMalere(); tegnUker(); tegnKondisjon(); tegnKropp();
-  fyllSammenligningsvalg(); tegnSammenligning(); tegnRekorder(); tegnTabell();
-  $('hentet').textContent = D.okter.length + ' økter · hentet ' + new Date().toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' });
+  var feil = [];
+  function kort(navn, f){ try { f(); } catch(e){ console.error(navn, e); feil.push(navn + ' (' + e.message + ')'); } }
+  if (D.okter.length){ kort('Nøkkeltall', tegnNokkel); kort('Innsikt', tegnInnsikt); kort('Målere', tegnMalere); kort('Uker', tegnUker); }
+  else $('innsikt').innerHTML = '<li>Ingen økter ennå.</li>';
+  kort('Kondisjon', tegnKondisjon); kort('Kropp', tegnKropp); kort('Hverdag', tegnKlokke);
+  if (D.okter.length){
+    kort('Økt mot økt', function(){ fyllSammenligningsvalg(); tegnSammenligning(); });
+    kort('Rekorder', tegnRekorder); kort('Tabell', tegnTabell);
+  }
+  $('hentet').textContent = D.okter.length + ' økter · hentet ' + new Date().toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' }) +
+    (feil.length ? ' · feil i ' + feil.join(', ') : '');
 }
 function visFane(navn){
   document.querySelectorAll('.fane').forEach(function(s){ s.classList.toggle('aktiv', s.id === 'fane-' + navn); });
@@ -869,7 +1251,7 @@ document.querySelectorAll('#faner button').forEach(function(b){ b.addEventListen
 $('velg-r').addEventListener('change', tegnKondisjon);
 $('sml-a').addEventListener('change', tegnSammenligning);
 $('sml-b').addEventListener('change', tegnSammenligning);
-$('ntnu-dato').value = new Date().toISOString().slice(0, 10);
+$('ntnu-dato').value = (function(){ var d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); })();
 $('ntnu-lagre').addEventListener('click', function(){ lagreNtnu().catch(function(e){ alert(e.message); }); });
 $('logg-inn').addEventListener('click', async function(){
   $('melding').textContent = 'Logger inn …';
@@ -880,7 +1262,12 @@ $('logg-inn').addEventListener('click', async function(){
   } catch(e){ $('melding').textContent = 'Feil: ' + e.message; }
 });
 $('passord').addEventListener('keydown', function(e){ if (e.key === 'Enter') $('logg-inn').click(); });
-$('logg-ut').addEventListener('click', function(){ localStorage.removeItem(SESJON); location.reload(); });
+// Utlogging tilbakekaller sesjonen på serveren (bare denne nettleseren) før den slettes lokalt
+$('logg-ut').addEventListener('click', async function(){
+  var s = JSON.parse(localStorage.getItem(SESJON) || 'null');
+  if (s) await fetch(URL_ + '/auth/v1/logout?scope=local', { method: 'POST', headers: { apikey: NOKKEL, Authorization: 'Bearer ' + s.access_token } }).catch(function(){});
+  localStorage.removeItem(SESJON); location.reload();
+});
 
 if (localStorage.getItem(SESJON)) vis().catch(function(e){ $('melding').textContent = e.message; });
 </script>
