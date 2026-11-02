@@ -12,7 +12,7 @@
   og RLS gjør at bare eieren ser sine rader.
 
   Faner: Oversikt (innsikt, helsestatus, aktivitet per uke) · Kondisjon · Kropp · Økter
-  Grenseverdier: Helsedirektoratet (aktivitet, KMI, midje), se GRENSER under.
+  Grenseverdier: Helsedirektoratet (aktivitet, KMI, bukfedme), WHO/IDF (midje 94), ACSM (pulssoner), se GRENSER under.
 -->
 <!-- CSP: et innskutt skript kan ikke sende data andre steder enn Supabase. Innebygd skript er tillatt (siden er ett dokument). -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://ygxhkdwhjyqpkmfzezxv.supabase.co; img-src 'self' data:; base-uri 'none'; form-action 'none'">
@@ -132,7 +132,7 @@ a{color:var(--blue)}
         <h3>Aktivitet per uke <span id="rekke"></span></h3>
         <div class="graf"><canvas id="g-uker"></canvas></div>
         <div class="merknad">Helsedirektoratet: 150–300 min moderat eller 75–150 min høy intensitet per uke — ett minutt høy teller som to moderate.
-          Intensitet fra pulsen (moderat 64–76 %, høy ≥ 77 % av makspuls). Økter uten pulskurve er anslått fra pulsobservasjoner, ellers regnet som moderat.
+          Helsedirektoratet beskriver intensitet ut fra pusten (moderat: litt andpusten, høy: kraftig andpusten); appen bruker pulsen som stedfortreder (moderat 64–76 %, høy ≥ 77 % av makspuls, ACSM). Økter uten pulskurve er anslått fra pulsobservasjoner, ellers regnet som moderat.
           Råd om muskelstyrkende aktivitet minst 2 dager i uka registreres ikke her.</div>
       </div>
       <div class="kort"><h3>Helsestatus <span>▼ nå · ┆ mål</span></h3><div id="malere"></div>
@@ -151,15 +151,15 @@ a{color:var(--blue)}
       <div class="kort"><h3>Puls på samme motstand <span><select id="velg-r"></select></span></h3><div class="graf"><canvas id="g-rpuls"></canvas></div>
         <div class="merknad">Snittpuls på valgt motstand etter de første 10 min. Lavere puls for samme arbeid = bedre kondisjon. Krever pulsbelte.</div></div>
       <div class="kort"><h3>Pulsfall etter økta</h3><div class="graf"><canvas id="g-hrr"></canvas></div>
-        <div class="merknad">Fall første minutt etter Stopp. Over 12 slag regnes som normalt (Cole m.fl., NEJM 1999). Høyere er bedre.</div></div>
+        <div class="merknad">Fall første minutt etter Stopp. Grensen på 12 slag kommer fra maksimale tester (Cole m.fl., NEJM 1999); etter en vanlig økt er tallet lavere og mest nyttig som trend. Høyere er bedre.</div></div>
       <div class="kort"><h3>Skritt per hjerteslag</h3><div class="graf lav"><canvas id="g-effekt"></canvas></div>
         <div class="merknad">Skritt delt på antall hjerteslag i økta. Stiger når hjertet jobber mindre for samme bevegelse.</div></div>
       <div class="kort"><h3>Hvilepuls <span id="hvile-kilde">klokka og oksymeter</span></h3><div class="graf lav"><canvas id="g-hvile"></canvas></div>
         <div class="merknad">Klokka: laveste 30-minutters snitt per døgn. Oksymeter: morgenmåling i ro, mer sammenlignbar fra dag til dag. En synkende hvilepuls over uker er et godt formtegn.</div></div>
       <div class="kort"><h3>HRV om morgenen <span id="hrv-kilde">RMSSD med pulsbelte</span></h3><div class="graf lav"><canvas id="g-hrv"></canvas></div>
-        <div class="merknad">2 min liggende rett etter oppvåkning. Enkeltmålinger svinger mye — se på ukesnittet (minst 3 målinger i uka). Grønt bånd = ditt normalområde siste 60 dager (snitt ± 1 standardavvik). Høyere enn vanlig = godt restituert; flere dager under båndet = stress, sykdom eller for lite hvile.</div></div>
+        <div class="merknad">2 min liggende rett etter oppvåkning. Enkeltmålinger svinger mye — se på ukesnittet (minst 3 målinger i uka). Grønt bånd = ditt normalområde siste 60 dager (snitt ± 1 standardavvik). Innenfor båndet = som vanlig. Flere dager under båndet kan bety stress, sykdom eller for lite hvile — se det sammen med hvilepuls og søvn. Uvanlig høy HRV er ikke alltid et godt tegn.</div></div>
       <div class="kort"><h3>Mobilbruk <span id="bruk-snitt">per døgn, kl. 04–04</span></h3><div class="graf lav"><canvas id="g-bruk"></canvas></div>
-        <div class="merknad" id="bruk-tekst">Skjermtid totalt og etter kl. 22, og når telefonen ble lagt bort. Skjerm sent på kvelden gir ofte dårligere søvn og lavere HRV dagen etter.</div></div>
+        <div class="merknad" id="bruk-tekst">Skjermtid totalt og etter kl. 22, og når telefonen ble lagt bort. Skjermbruk rett før leggetid henger i studier sammen med kortere og dårligere søvn; se om det stemmer for deg i Hverdag-fanen.</div></div>
     </div>
     <h2>Kondisjonstall</h2>
     <div class="rutenett r2">
@@ -191,7 +191,7 @@ a{color:var(--blue)}
         <div class="merknad">Venstre akse cm, høyre akse midje/høyde. Over 102 cm = bukfedme (Helsedirektoratet), over 94 cm = økt risiko (internasjonal grense).
           Midje/høyde tar hensyn til hvor høy du er: under 0,5 = lav risiko, 0,5–0,6 = økt, 0,6 eller mer = høy (NICE 2022).</div></div>
       <div class="kort"><h3>Blodtrykk <span id="bt-siste"></span></h3><div class="graf"><canvas id="g-bt"></canvas></div>
-        <div class="merknad">Hver måling med blodtrykksmåleren; linja er snittet per døgn. Stiplet = grensen for høyt blodtrykk ved hjemmemåling, 135/85 mmHg (europeisk retningslinje).</div></div>
+        <div class="merknad">Hver måling med blodtrykksmåleren; linja er snittet per døgn. Stiplet = grensen for høyt blodtrykk ved hjemmemåling, 135/85 mmHg (ESH og Helsedirektoratet). Grensen gjelder snittet av en måleserie (2 målinger morgen og 2 kveld i minst 3, helst 7 dager), ikke enkeltmålinger. Ligger snittet over, snakk med fastlegen. Håndleddsmålere er mindre pålitelige enn overarmsmålere — sammenlign gjerne med målingen hos legen.</div></div>
     </div>
     <h2>Milepæler</h2>
     <div class="kort tabell"><table><thead><tr><th class="v">Milepæl</th><th>Vekt</th><th>Igjen</th><th>Anslått dato</th><th class="v">Hvorfor</th></tr></thead><tbody id="milepaeler"></tbody></table></div>
@@ -203,13 +203,13 @@ a{color:var(--blue)}
     <div class="nokkel" id="nokkel-klokke"></div>
     <div class="rutenett r2">
       <div class="kort"><h3>Søvn <span id="sovn-snitt"></span></h3><div class="graf"><canvas id="g-sovn"></canvas></div>
-        <div class="merknad">Hovedsøvnen hver natt fordelt på faser, på døgnet du våkner. Grønt bånd = 7–9 timer, anbefalt for voksne. Dyp søvn og REM fra klokka er anslag, ikke laboratoriemåling.</div></div>
+        <div class="merknad">Hovedsøvnen hver natt fordelt på faser, på døgnet du våkner. Grønt bånd = 7–9 timer (amerikanske anbefalinger, NSF/AASM). Helsenorge: de fleste voksne trenger 7–8 timer, og er du uthvilt på dagtid, har du sovet nok. Dyp søvn og REM fra klokka er anslag, ikke laboratoriemåling.</div></div>
       <div class="kort"><h3>Leggetid og oppvåkning <span id="sovn-tider"></span></h3><div class="graf"><canvas id="g-sovntid"></canvas></div>
-        <div class="merknad">Faste tider (under en times variasjon) gir bedre søvn enn å ta igjen i helgene.</div></div>
+        <div class="merknad">Helsenorge anbefaler samme legge- og oppvåkningstid hver dag. Tallet over er standardavviket for leggetiden — lavere er jevnere. Linjene er snitt for 7 døgn.</div></div>
       <div class="kort"><h3>Skritt <span id="skritt-snitt"></span></h3><div class="graf"><canvas id="g-skritt"></canvas></div>
-        <div class="merknad">Stiplet = 8000 skritt; dødelighetsrisikoen synker tydelig opp mot 7000–9000 skritt om dagen (Paluch m.fl., Lancet Public Health 2022). Dagen i dag er ikke ferdig.</div></div>
+        <div class="merknad">Stiplet = 8000 skritt; det finnes ingen norsk skrittanbefaling. 7000 skritt gir om lag halvert dødelighet mot 2000 (Ding m.fl., Lancet Public Health 2025); for under 60 år flater gevinsten ut ved 8000–10 000 (Paluch m.fl. 2022). Dagen i dag er ikke ferdig.</div></div>
       <div class="kort"><h3>Oksygen og pust om natta <span id="spo2-siste"></span></h3><div class="graf"><canvas id="g-spo2natt"></canvas></div>
-        <div class="merknad">SpO₂ snitt og laveste måling per døgn (venstre akse), pust per minutt (høyre akse). Laveste under 90 % flere netter kan være verdt å nevne for legen (søvnapné).</div></div>
+        <div class="merknad">SpO₂ snitt og laveste måling per døgn (venstre akse), pust per minutt (høyre akse). Laveste under 90 % flere netter i uka (kortet blir gult ved 3 av 7) kan være verdt å nevne for fastlegen, særlig ved snorking eller dagtretthet (søvnapné). Klokkemålinger er mindre nøyaktige enn et medisinsk oksymeter.</div></div>
       <div class="kort"><h3>HRV og hvilepuls fra klokka <span id="hrv-klokke"></span></h3><div class="graf"><canvas id="g-hrvklokke"></canvas></div>
         <div class="merknad">Klokkas egne tall fra Samsung Health. HRV (venstre) svinger mye fra natt til natt — se på trenden. Hvilepuls (høyre) som synker over uker er et godt formtegn.</div></div>
       <div class="kort"><h3>Puls hele døgnet <span id="puls-dogn"></span></h3><div class="graf"><canvas id="g-pulsdogn"></canvas></div>
@@ -217,7 +217,7 @@ a{color:var(--blue)}
       <div class="kort"><h3>Døgnkurve <span id="puls-kurve"></span></h3><div class="graf"><canvas id="g-pulstime"></canvas></div>
         <div class="merknad">Snittpuls per klokketime: siste 7 døgn mot de 30 før. Natt-timene viser hvor lavt pulsen går i søvn; trening og gåturer gir toppene.</div></div>
       <div class="kort"><h3>Hudtemperatur om natta <span id="hud-siste"></span></h3><div class="graf"><canvas id="g-hud"></canvas></div>
-        <div class="merknad">Avvik fra klokkas egen grunnlinje (°C). Over +1 °C en natt eller to ses ofte ved infeksjon eller dårlig restitusjon — vurder å ta det rolig med treningen.</div></div>
+        <div class="merknad">Avvik fra klokkas egen grunnlinje (°C). Et uvanlig høyt avvik er et uspesifikt signal (kan komme av infeksjon, alkohol, varmt soverom eller dårlig restitusjon); linja ved +1 °C er ingen medisinsk grense. Kjenner du deg syk, ta det rolig med treningen.</div></div>
       <div class="kort"><h3>Kroppssammensetning <span id="kropp-klokke"></span></h3><div class="graf"><canvas id="g-sammensetning"></canvas></div>
         <div class="merknad">Fra klokka eller vekta (bioimpedans). Fettprosent (venstre) og fettfri masse (høyre). Måles best samme tid på dagen, før mat og trening.</div></div>
       <div class="kort"><h3>Energi <span id="energi-snitt"></span></h3><div class="graf"><canvas id="g-energi"></canvas></div>
@@ -255,7 +255,7 @@ var URL_ = 'https://ygxhkdwhjyqpkmfzezxv.supabase.co';
 var NOKKEL = 'sb_publishable_wiJxJlwGbklxNgNjL4riJg_Hh55ayG0';
 var SESJON = 'trening-pc-sesjon', FANE = 'trening-pc-fane';
 
-// Helsedirektoratet (aktivitet 2022, KMI/midje), WHO, Cole m.fl. 1999
+// Helsedirektoratet (fysisk aktivitet, KMI, bukfedme 102), WHO/IDF (midje 94), ACSM (pulssoner), Cole m.fl. 1999 (pulsfall etter maksimal test)
 var GRENSER = {
   ukeMin: 150, ukeMaks: 300,          // moderat-ekvivalenter per uke
   moderat: 0.64, hoy: 0.77,           // andel av makspuls
@@ -547,7 +547,7 @@ async function last(){
   var alder = alderFra(p.fodselsdato);
   var profil = {
     hoyde: +p.hoyde_cm || null, alder: alder, kjonn: p.kjonn,
-    makspuls: +p.makspuls || (alder ? 220 - alder : 171),   // samme reserve som appen
+    makspuls: +p.makspuls || (alder ? Math.round(211 - 0.64 * alder) : 180),   // samme reserve som appen (HUNT, Nes m.fl. 2013)
     makspulsAnslatt: !+p.makspuls,
     hvilepuls: +p.hvilepuls || null,
     malVekt: +p.mal_vekt_kg || null, malMidje: +p.mal_midje_cm || null
@@ -591,6 +591,12 @@ async function last(){
   var medHud = D.klokke.filter(function(d){ return d.hud_status; }).pop();
   klokkeHud = medHud ? medHud.hud_status : null;
   D.uker = lagUker(D.okter);
+  // Startvekt for milepælene: første sammenlignbare morgenveiing de første 14 døgnene, ellers første veiing
+  // (en tilfeldig veiing etter middag ga ellers en for høy start)
+  if (D.vekt.length){
+    var forste = D.vekt[0], sml = D.vekt.filter(function(v){ return v.sml && v.x < forste.x + 14 * DAG; })[0];
+    D.startVekt = (sml || forste).y;
+  }
   D.vektTrend = vektTrend();
 }
 
@@ -695,10 +701,10 @@ function skala(tittel, verdi, tekst, min, max, soner, mal){
 function milepaeler(){
   var P = D.profil, T = D.vektTrend, h2 = P.hoyde ? Math.pow(P.hoyde / 100, 2) : null, ut = [];
   if (!D.vekt.length) return ut;
-  var start = D.vekt[0].y;
-  ut.push({ navn: '−5 %', vekt: start * .95, hvorfor: 'Helsedirektoratet: 5–10 % nedgang gir målbar helsegevinst' });
+  var start = D.startVekt;
+  ut.push({ navn: '−5 %', vekt: start * .95, hvorfor: 'Helsedirektoratet: 5–10 % nedgang på 3–12 måneder regnes som vellykket' });
   if (h2) ut.push({ navn: 'KMI under 30', vekt: 30 * h2, hvorfor: 'Ut av fedme-klassen (WHO/Helsedirektoratet)' });
-  ut.push({ navn: '−10 %', vekt: start * .9, hvorfor: 'Øvre del av anbefalt nedgang' });
+  ut.push({ navn: '−10 %', vekt: start * .9, hvorfor: 'Helsedirektoratet: også innenfor 5–10 %; deretter er vedlikehold målet' });
   if (P.malVekt) ut.push({ navn: 'Ditt mål', vekt: P.malVekt, hvorfor: 'Satt i appen' });
   if (h2) ut.push({ navn: 'KMI under 25', vekt: 25 * h2, hvorfor: 'Normalvekt-klassen' });
   return ut.sort(function(a, b){ return b.vekt - a.vekt; });
@@ -718,7 +724,7 @@ function tegnMalere(){
   if (midje) s += skala('Midje', midje, midje + ' cm' + (P.hoyde ? ' · midje/høyde ' + k(midje / P.hoyde, 2) : ''), 75, 120,
     [[75, GRENSER.midjeRisiko, F.ok, 'lav risiko'], [GRENSER.midjeRisiko, GRENSER.midjeBukfedme, F.warn, 'økt risiko'], [GRENSER.midjeBukfedme, 120, F.bad, 'bukfedme']], P.malMidje);
   if (vekt){
-    var start = D.vekt[0].y, m5 = start * .95, m10 = start * .9;
+    var start = D.startVekt, m5 = start * .95, m10 = start * .9;
     s += skala('Vekt mot milepæler', vekt, k(vekt, 1) + ' kg (' + fortegn((vekt / start - 1) * 100, 1) + ' %)', Math.min(m10, P.malVekt || m10) - 3, start + 2,
       [[Math.min(m10, P.malVekt || m10) - 3, m10, F.ok, '−10 %'], [m10, m5, F.teal, '−5 %'], [m5, start + 2, F.warn, 'start ' + k(start)]], P.malVekt);
   }
@@ -1048,7 +1054,9 @@ function tegnKlokke(){
   nk(s == null ? '' : s >= 420 ? 'ok' : s < 360 ? 'warn' : '', 'Søvn, 7 netter', s == null ? '–' : timerTekst(s).replace(' min', ''), '', s == null ? 'ingen søvndata' : 'snitt hovedsøvn');
   var sk = snitt(skr7);
   nk(sk == null ? '' : sk >= 8000 ? 'ok' : sk < 5000 ? 'warn' : '', 'Skritt, 7 døgn', sk == null ? '–' : k(sk), '', sk == null ? 'ingen skrittdata' : 'snitt per døgn');
-  nk(spo && spo.spo2_min != null && spo.spo2_min < 90 ? 'warn' : '', 'SpO₂ om natta', spo ? k(spo.spo2_snitt, 1) : '–', spo ? ' %' : '', spo ? 'laveste ' + k(spo.spo2_min) + ' % (' + kd(spo.x) + ')' : 'ingen målinger');
+  // Gult først når laveste SpO₂ var under 90 % minst 3 av de siste 7 nettene (én natt kan være feilmåling)
+  var lavSpo = siste(7, function(d){ return d.spo2_min; }).filter(function(v){ return v < 90; }).length;
+  nk(lavSpo >= 3 ? 'warn' : '', 'SpO₂ om natta', spo ? k(spo.spo2_snitt, 1) : '–', spo ? ' %' : '', spo ? 'laveste ' + k(spo.spo2_min) + ' % (' + kd(spo.x) + ')' : 'ingen målinger');
   var h = snitt(hrv7);
   nk('', 'HRV fra klokka', h == null ? '–' : k(h), h == null ? '' : ' ms', h == null ? 'ingen målinger' : 'snitt 7 døgn');
   $('nokkel-klokke').innerHTML = ut.join('');
