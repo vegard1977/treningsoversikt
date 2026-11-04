@@ -146,10 +146,10 @@ a{color:var(--blue)}
   <section class="fane" id="fane-kondisjon">
     <div class="rutenett r2">
       <div class="kort"><h3>Tempo <span>skritt per minutt</span></h3><div class="graf"><canvas id="g-tempo"></canvas></div>
-        <div class="merknad">Grønn = snitt av 4 siste økter. Påvirkes ikke av vekt/alder i maskinen — det ærligste målet på arbeid over tid.</div></div>
+        <div class="merknad">Grønn = snitt av 4 siste økter på minst 10 min. Kortere økter vises som punkt, men er ikke med i snittet. Påvirkes ikke av vekt/alder i maskinen — det ærligste målet på arbeid over tid.</div></div>
       <div class="kort"><h3>Kcal per minutt <span>sammenlignbare perioder</span></h3><div class="graf"><canvas id="g-kpm"></canvas></div>
         <div class="merknad">Grå = før vekt og alder ble lagt inn i maskinen (Precor regner kcal fra vekten som er tastet inn).</div></div>
-      <div class="kort"><h3>Puls på motstand fra programmet <span><select id="velg-r"></select></span></h3><div class="graf"><canvas id="g-rpuls"></canvas></div>
+      <div class="kort"><h3>Puls på motstand fra programmet <span><select id="velg-r" aria-label="Motstandsnivå"></select></span></h3><div class="graf"><canvas id="g-rpuls"></canvas></div>
         <div class="merknad">Snittpuls på valgt motstand etter de første 10 min. Motstanden kommer fra programmet og søylene du eventuelt har rettet, og er ikke målt på maskinen. Tempoet er ikke med, så lavere puls er ikke alene et tegn på bedre kondisjon. Krever pulsbelte.</div></div>
       <div class="kort"><h3>Pulsfall etter økta</h3><div class="graf"><canvas id="g-hrr"></canvas></div>
         <div class="merknad">Fall første minutt etter Stopp. Grensen på 12 slag kommer fra maksimale tester (Cole m.fl., NEJM 1999); etter en vanlig økt er tallet lavere og mest nyttig som trend. Høyere er bedre.</div></div>
@@ -187,7 +187,7 @@ a{color:var(--blue)}
   <section class="fane" id="fane-kropp">
     <div class="rutenett r2">
       <div class="kort"><h3>Vekt <span id="vekt-tempo"></span></h3><div class="graf"><canvas id="g-vekt"></canvas></div>
-        <div class="merknad">Bakgrunn: rødt = KMI over 30, gult = 25–30 (regnet om til kg for din høyde). Stiplet = framskriving med tempoet siste 6 uker. ◆ = sammenlignbar morgenveiing (før kl. 12, ikke spist, etter do, uten klær) — den brukes for dagen. Grå = andre veiinger samme dag.</div></div>
+        <div class="merknad">Bakgrunn: rødt = KMI over 30, gult = 25–30 (regnet om til kg for din høyde). <span id="vekt-framskriving"></span> ◆ = sammenlignbar morgenveiing (før kl. 12, ikke spist, etter do, uten klær) — den brukes for dagen. Grå = andre veiinger samme dag.</div></div>
       <div class="kort"><h3>Midje <span id="midje-forhold"></span></h3><div class="graf"><canvas id="g-midje"></canvas></div>
         <div class="merknad">Venstre akse cm, høyre akse midje/høyde. Over 102 cm = bukfedme (Helsedirektoratet), over 94 cm = økt risiko (internasjonal grense).
           Midje/høyde tar hensyn til hvor høy du er: under 0,5 = lav risiko, 0,5–0,6 = økt, 0,6 eller mer = høy (NICE 2022).</div></div>
@@ -231,7 +231,7 @@ a{color:var(--blue)}
 
   <section class="fane" id="fane-okter">
     <div class="kort">
-      <h3>Økt mot økt <span><select id="sml-a"></select> mot <select id="sml-b"></select></span></h3>
+      <h3>Økt mot økt <span><select id="sml-a" aria-label="Økt A"></select> mot <select id="sml-b" aria-label="Økt B"></select></span></h3>
       <div class="graf"><canvas id="g-sml"></canvas></div>
       <div class="tall" id="sml-tall" style="margin-top:10px"></div>
     </div>
@@ -501,6 +501,9 @@ Chart.register({
 
 var grafer = {};
 function graf(id, type, datasett, valg){
+  // Navn til skjermleser fra kortets overskrift. Verdiene finnes fortsatt bare i grafen og verktøytipsene.
+  var lerret = $(id), overskrift = lerret && lerret.closest('.kort') && lerret.closest('.kort').querySelector('h3');
+  if (lerret){ lerret.setAttribute('role', 'img'); lerret.setAttribute('aria-label', 'Graf: ' + (overskrift ? overskrift.firstChild.textContent.trim() : id)); }
   if (grafer[id]) grafer[id].destroy();
   var ref = valg && valg.referanser;
   var cfg = {
@@ -554,6 +557,14 @@ function xRamme(p){ var x = p.map(function(q){ return q.x; }); if (!x.length) re
 // Snitt over n kalenderdøgn bakover fra hvert punkt (ikke n punkter, som kunne strekke seg over uker med hull)
 function rullende(p, n){ return p.map(function(q){ var a = p.filter(function(z){ return z.x <= q.x && z.x > q.x - n * DAG; }); return { x: q.x, y: snitt(a.map(function(z){ return z.y; })) }; }); }
 // Glidende snitt av de n siste punktene (øktene), uansett hvor langt det er mellom dem
+// Tempo sammenlignes bare mellom økter på minst 10 min: en avbrutt økt på 2 min skal ikke telle som en hel økt.
+// Produktvalg, ikke en faglig terskel. Kortere økter står fortsatt som punkt i grafen og i tabellen.
+var KORT_OKT_MIN = 10;
+function tempoOkter(O){ return O.filter(function(b){ return b.spm && b.min >= KORT_OKT_MIN; }); }
+function korteIUtvalg(O, spm, n){
+  var fra = spm.slice(-n)[0].x;
+  return O.filter(function(b){ return b.spm && b.min < KORT_OKT_MIN && b.x >= fra; }).length;
+}
 function rullendeOkter(p, n){ return p.map(function(q, i){ return { x: q.x, y: snitt(p.slice(Math.max(0, i - n + 1), i + 1).map(function(z){ return z.y; })) }; }); }
 // Lokale klokketimer etter midnatt ved starten av dato (25 = kl. 01 natta etter). Regnes fra klokkeslettet,
 // ikke fra ms-differansen, så natta sommertid skifter gir ikke én time feil.
@@ -658,9 +669,11 @@ function vektTrend(){
   var t = trend(utvalg.map(function(p){ return [p.x, p.y]; }));
   if (!t) return null;
   var start = v[0].y, na = v[v.length - 1];
-  return { perUke: t.perDag * 7, perDag: t.perDag, start: start, na: na, sml: v !== D.vekt,
-    dager: (utvalg[utvalg.length - 1].x - utvalg[0].x) / DAG,
-    eta: function(mal){ return t.perDag < 0 && mal < na.y ? na.x + (na.y - mal) / -t.perDag * DAG : null; } };
+  var dager = (utvalg[utvalg.length - 1].x - utvalg[0].x) / DAG;
+  // Datoer krever minst 4 veiinger over minst 14 dager: to veiinger kan ellers gi en dato langt fram i tid. Produktvalg, ikke en medisinsk grense.
+  var nok = utvalg.length >= 4 && dager >= 14;
+  return { perUke: t.perDag * 7, perDag: t.perDag, start: start, na: na, sml: v !== D.vekt, dager: dager, nok: nok,
+    eta: function(mal){ return nok && t.perDag < 0 && mal < na.y ? na.x + (na.y - mal) / -t.perDag * DAG : null; } };
 }
 
 /* ================================================================
@@ -678,10 +691,11 @@ function tegnInnsikt(){
       ', ' + k(siste.o.kcal, 1) + sp(siste.o, 'kcal') + ' kcal, ' + k(siste.spm) + sp(siste.o, 'skritt', 'varighet_s') + ' skritt/min.');
   }
   // Tempo: siste 4 mot de 4 før
-  var spm = O.filter(function(b){ return b.spm; });
+  var spm = tempoOkter(O);
   if (spm.length >= 8){
     var a = snitt(spm.slice(-4).map(function(b){ return b.spm; })), f = snitt(spm.slice(-8, -4).map(function(b){ return b.spm; })), d = pst(a, f);
-    legg(d >= 1 ? 'ok' : d <= -3 ? 'warn' : 'info', 'Tempoet siste 4 økter er ' + k(a) + ' skritt/min, ' + fortegn(d, 1) + ' % mot de 4 før.');
+    legg(d >= 1 ? 'ok' : d <= -3 ? 'warn' : 'info', 'Tempoet siste 4 økter er ' + k(a) + ' skritt/min, ' + fortegn(d, 1) + ' % mot de 4 før.' +
+      (function(n){ return n ? ' ' + n + (n === 1 ? ' kort økt' : ' korte økter') + ' under ' + KORT_OKT_MIN + ' min er ikke med.' : ''; })(korteIUtvalg(O, spm, 8)));
     var forst = snitt(spm.slice(0, 4).map(function(b){ return b.spm; }));
     if (spm.length >= 10){ var dS = pst(a, forst); legg(dS >= 1 ? 'ok' : 'info', 'Siden starten (' + kd(spm[0].x) + ') er tempoet ' + fortegn(dS, 0) + ' %.'); }
   }
@@ -800,7 +814,7 @@ function tegnUker(){
 function tegnKondisjon(){
   var O = D.okter;
   var tempo = O.filter(function(b){ return b.spm; }).map(function(b){ return { x: b.x, y: b.spm }; });
-  graf('g-tempo', 'scatter', [punkt('Økt', tempo, F.faint), linje('Snitt 4 økter', rullendeOkter(tempo, 4), F.ok)],
+  graf('g-tempo', 'scatter', [punkt('Økt', tempo, F.faint), linje('Snitt 4 økter', rullendeOkter(tempoOkter(O).map(function(b){ return { x: b.x, y: b.spm }; }), 4), F.ok)],
     { enhet: 'skritt/min', utenForklaring: true, referanser: { markorer: hendelsesMarkorer() } });
 
   var kpm = O.filter(function(b){ return b.kpm; });
@@ -939,6 +953,9 @@ function tegnKropp(){
   var lav = Math.min.apply(null, vis.map(function(m){ return m.vekt; }).concat(alleY));
   var hoy = Math.max.apply(null, alleY.concat([lav + 5]));
   $('vekt-tempo').textContent = T ? fortegn(T.perUke, 2) + ' kg/uke' : '';
+  $('vekt-framskriving').textContent = T && T.nok ?
+    'Stiplet = framskriving med tempoet ' + (T.dager >= 35 ? 'siste 6 uker' : 'siste ' + Math.round(T.dager) + ' dager') + '.' :
+    'Framskriving og datoer vises ved minst 4 veiinger over minst 14 dager.';
   graf('g-vekt', 'scatter', sett, {
     des: 1, enhet: 'kg', utenForklaring: true, x: { max: maxX + 3 * DAG },
     y: { min: Math.floor(lav - 2), max: Math.ceil(hoy + 2) },
@@ -1261,10 +1278,11 @@ function tegnNokkel(){
   nk(denne.ekv >= GRENSER.ukeMin ? 'ok' : '', 'Denne uka', Math.round(denne.ekv), ' / 150 min', forrige ? 'forrige ' + Math.round(forrige.ekv) : '');
   if (T) nk(T.perUke < 0 ? 'ok' : 'warn', 'Vekt', k(T.na.y, 1), ' kg', fortegn(T.perUke, 2) + ' kg/uke', T.perUke < 0 ? 'ok' : 'warn');
   else nk('', 'Vekt', '–', '', 'ingen veiinger');
-  var spm = O.filter(function(b){ return b.spm; });
+  var spm = tempoOkter(O);
   if (spm.length >= 4){
     var a = snitt(spm.slice(-4).map(function(b){ return b.spm; })), f = spm.length >= 8 ? snitt(spm.slice(-8, -4).map(function(b){ return b.spm; })) : null;
-    nk('', 'Tempo, 4 økter', k(a), ' spm', f ? fortegn(pst(a, f), 1) + ' % mot de 4 før' : 'skritt per minutt');
+    var korte = korteIUtvalg(O, spm, f ? 8 : 4);
+    nk('', 'Tempo, 4 økter', k(a), ' spm', (f ? fortegn(pst(a, f), 1) + ' % mot de 4 før' : 'skritt per minutt') + (korte ? ', uten ' + korte + (korte === 1 ? ' kort økt' : ' korte økter') : ''));
   }
   var siste = O[O.length - 1];
   if (siste){
@@ -1292,11 +1310,29 @@ function tegnAlt(){
 }
 function visFane(navn){
   document.querySelectorAll('.fane').forEach(function(s){ s.classList.toggle('aktiv', s.id === 'fane-' + navn); });
-  document.querySelectorAll('#faner button').forEach(function(b){ b.classList.toggle('aktiv', b.dataset.fane === navn); });
+  document.querySelectorAll('#faner button').forEach(function(b){
+    b.classList.toggle('aktiv', b.dataset.fane === navn);
+    if (b.dataset.fane === navn) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
   try { localStorage.setItem(FANE, navn); } catch(e) {}
   Object.keys(grafer).forEach(function(id){ grafer[id].resize(); });
 }
+// Kontoen siden viser. Logges det ut eller byttes konto i en annen fane, lastes siden på nytt,
+// så gamle helsedata ikke blir stående og lagring ikke går til en annen konto. Fornyet token gir samme konto.
+var aktivKonto = null;
+function kontoFra(verdi){
+  if (!verdi) return null;
+  try {
+    var b = JSON.parse(verdi).access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(b)).sub || 'ukjent';
+  } catch(e){ return 'ukjent'; }
+}
+window.addEventListener('storage', function(e){
+  if (e.key !== SESJON && e.key !== null) return;
+  if (kontoFra(localStorage.getItem(SESJON)) !== aktivKonto) location.reload();
+});
 async function vis(){
+  aktivKonto = kontoFra(localStorage.getItem(SESJON));
   await last();
   $('innlogging').hidden = true; $('faner').hidden = false; $('logg-ut').hidden = false;
   var f = 'oversikt'; try { f = localStorage.getItem(FANE) || f; } catch(e) {}
@@ -1319,11 +1355,12 @@ $('logg-inn').addEventListener('click', async function(){
   } catch(e){ $('melding').textContent = 'Feil: ' + e.message; }
 });
 $('passord').addEventListener('keydown', function(e){ if (e.key === 'Enter') $('logg-inn').click(); });
-// Utlogging tilbakekaller sesjonen på serveren (bare denne nettleseren) før den slettes lokalt
-$('logg-ut').addEventListener('click', async function(){
+// Utlogging sletter lokalt med en gang og venter ikke på nettet. Serveren får beskjed om å tilbakekalle sesjonen (bare denne nettleseren).
+$('logg-ut').addEventListener('click', function(){
   var s = JSON.parse(localStorage.getItem(SESJON) || 'null');
-  if (s) await fetch(URL_ + '/auth/v1/logout?scope=local', { method: 'POST', headers: { apikey: NOKKEL, Authorization: 'Bearer ' + s.access_token } }).catch(function(){});
-  localStorage.removeItem(SESJON); location.reload();
+  localStorage.removeItem(SESJON);
+  if (s) fetch(URL_ + '/auth/v1/logout?scope=local', { method: 'POST', keepalive: true, headers: { apikey: NOKKEL, Authorization: 'Bearer ' + s.access_token } }).catch(function(){});
+  location.reload();
 });
 
 if (localStorage.getItem(SESJON)) vis().catch(function(e){ $('melding').textContent = e.message; });
