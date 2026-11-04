@@ -1078,7 +1078,7 @@ function tegnTabell(){
       '</td><td' + (o.kcal_ca ? ' class="ca" title="omtrentlig"' : '') + '>' + k(o.kcal, 1) + sp(o, 'kcal') + '</td><td' + (b.kcalSammenlign ? '' : ' class="gra" title="før vekt ble lagt inn i maskinen"') + '>' + k(b.kpm, 1) + sp(o, 'kcal', 'varighet_s') +
       '</td><td>' + f3 + '</td><td>' + puls + '</td><td>' + k(b.rPuls[14]) + '</td><td>' + k(b.hrr1) +
       '</td><td class="v"><span class="merke ' + esc(kilde) + '">' + esc(kilde) + '</span>' + (o.lesing ? ' <span class="merke" title="lest fra bilde">📷</span>' : '') +
-      '</td><td class="notat">' + esc([o.mal_navn, o.notat].filter(Boolean).join(' · ')) + '</td></tr>';
+      '</td><td class="notat">' + esc([o.mal_navn, { kunne_fortsatt: 'Kunne fortsatt', passe: 'Passe ferdig', helt_ferdig: 'Helt ferdig' }[o.overskudd], o.notat].filter(Boolean).join(' · ')) + '</td></tr>';
   }).join('');
   $('datakvalitet').innerHTML = 'Gul kcal = omtrentlig. Grå kcal/min = ikke sammenlignbar (før vekt/alder i maskinen). ~puls = fra pulsobservasjon i loggen, ikke målt kurve. ? = usikker bildeavlesning som ikke er rettet eller bekreftet i appen, og teller ikke i rekorder. (app) = appens tid, konsolltid mangler. Puls R14 bruker motstand fra programmet, ikke målt motstand. ' +
     'Hendelser: ' + HENDELSER.map(function(h){ return dato(msFra(h.dato)) + ' ' + h.tekst; }).join(' · ') + '.';
