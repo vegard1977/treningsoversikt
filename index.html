@@ -63,7 +63,8 @@ h3 span{color:var(--faint);font-size:.85rem;font-weight:400}
 .r2{grid-template-columns:repeat(auto-fit,minmax(440px,1fr))}
 .r3{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
 .r4{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
-@media (max-width:520px){.r2,.r3{grid-template-columns:1fr}}
+@media (max-width:520px){.r2,.r3{grid-template-columns:minmax(0,1fr)}
+  nav{width:100%} nav button{flex:1 1 auto;padding:6px 2px;font-size:.85rem}}
 .graf{position:relative;height:240px}
 .graf.lav{height:190px}
 .fane{display:none}.fane.aktiv{display:block}
@@ -157,7 +158,7 @@ a{color:var(--blue)}
       <div class="kort"><h3>Hvilepuls <span id="hvile-kilde">klokka og oksymeter</span></h3><div class="graf lav"><canvas id="g-hvile"></canvas></div>
         <div class="merknad">Klokka: laveste 30-minutters snitt per døgn. Oksymeter: morgenmåling i ro, mer sammenlignbar fra dag til dag. En synkende hvilepuls over uker er et godt formtegn.</div></div>
       <div class="kort"><h3>HRV om morgenen <span id="hrv-kilde">RMSSD med pulsbelte</span></h3><div class="graf lav"><canvas id="g-hrv"></canvas></div>
-        <div class="merknad">2 min liggende rett etter oppvåkning. Enkeltmålinger svinger mye — se på ukesnittet (minst 3 målinger i uka). Grønt bånd = ditt normalområde siste 60 dager (snitt ± 1 standardavvik). Innenfor båndet = som vanlig. Flere dager under båndet kan bety stress, sykdom eller for lite hvile — se det sammen med hvilepuls og søvn. Uvanlig høy HRV er ikke alltid et godt tegn.</div></div>
+        <div class="merknad">2 min liggende rett etter oppvåkning. Enkeltmålinger svinger mye — se på ukesnittet (minst 3 målinger i uka). Grønt bånd = ditt normalområde siste 60 dager (median ± robust standardavvik, så enkeltmålinger ikke drar det). Innenfor båndet = som vanlig. Flere dager under båndet kan bety stress, sykdom eller for lite hvile — se det sammen med hvilepuls og søvn. Uvanlig høy HRV er ikke alltid et godt tegn.</div></div>
       <div class="kort"><h3>Mobilbruk <span id="bruk-snitt">per døgn, kl. 04–04</span></h3><div class="graf lav"><canvas id="g-bruk"></canvas></div>
         <div class="merknad" id="bruk-tekst">Skjermtid totalt og etter kl. 22, og når telefonen ble lagt bort. Skjermbruk rett før leggetid henger i studier sammen med kortere og dårligere søvn; se om det stemmer for deg i Hverdag-fanen.</div></div>
     </div>
@@ -399,7 +400,9 @@ function beregnOkt(o, profil){
   b.ekv = b.modMin + 2 * b.hoyMin;
   var r = o.restitusjon;
   if (r && r.serie && r.serie.length){
-    var topp = r.puls_slutt || (p.length ? p[p.length - 1][1] : null);
+    // null = ukjent (appen fant ingen fersk puls ved Stopp). Bare eldre økter uten feltet bruker siste punkt, og bare hvis det er ferskt.
+    var sist = p[p.length - 1];
+    var topp = r.puls_slutt !== undefined ? r.puls_slutt : (sist && o.slutt - (o.start + sist[0] * 1000) < 10000 ? sist[1] : null);
     var e1 = pulsVed(r.serie, 60), e5 = pulsVed(r.serie, 300);
     b.hrr1 = topp && e1 ? topp - e1 : null;
     b.puls5 = e5;
@@ -411,6 +414,12 @@ function beregnOkt(o, profil){
    Chart.js: felles stil og referanselinjer
    ================================================================ */
 var FONT = '"Inter",system-ui,-apple-system,"Segoe UI",sans-serif';
+// Lastes ikke Chart.js fra CDN-et, skal innlogging og tall virke likevel. Hvert kort viser feilen når grafen tegnes.
+if (!window.Chart){
+  var utenGrafer = new Proxy(function(){ throw new Error('Grafbiblioteket ble ikke lastet. Sjekk nettet og last siden på nytt.'); },
+    { get: function(m, n){ return n === 'register' ? function(){} : utenGrafer; }, set: function(){ return true; } });
+  window.Chart = utenGrafer;
+}
 Chart.defaults.color = F.faint;          // aksetekst dempet; data skal stikke seg ut
 Chart.defaults.borderColor = F.grid;
 Chart.defaults.font.family = FONT;
@@ -525,6 +534,8 @@ function xRamme(p){ var x = p.map(function(q){ return q.x; }); if (!x.length) re
   var a = Math.min.apply(null, x), b = Math.max.apply(null, x); return b - a < 7 * DAG ? { min: a - 21 * DAG, max: b + 21 * DAG } : {}; }
 // Snitt over n kalenderdøgn bakover fra hvert punkt (ikke n punkter, som kunne strekke seg over uker med hull)
 function rullende(p, n){ return p.map(function(q){ var a = p.filter(function(z){ return z.x <= q.x && z.x > q.x - n * DAG; }); return { x: q.x, y: snitt(a.map(function(z){ return z.y; })) }; }); }
+// Glidende snitt av de n siste punktene (øktene), uansett hvor langt det er mellom dem
+function rullendeOkter(p, n){ return p.map(function(q, i){ return { x: q.x, y: snitt(p.slice(Math.max(0, i - n + 1), i + 1).map(function(z){ return z.y; })) }; }); }
 // Lokale klokketimer etter midnatt ved starten av dato (25 = kl. 01 natta etter). Regnes fra klokkeslettet,
 // ikke fra ms-differansen, så natta sommertid skifter gir ikke én time feil.
 function isoLokal(t){ return t.getFullYear() + '-' + ('0' + (t.getMonth() + 1)).slice(-2) + '-' + ('0' + t.getDate()).slice(-2); }
@@ -653,7 +664,7 @@ function tegnInnsikt(){
     var a = snitt(spm.slice(-4).map(function(b){ return b.spm; })), f = snitt(spm.slice(-8, -4).map(function(b){ return b.spm; })), d = pst(a, f);
     legg(d >= 1 ? 'ok' : d <= -3 ? 'warn' : 'info', 'Tempoet siste 4 økter er ' + k(a) + ' skritt/min, ' + fortegn(d, 1) + ' % mot de 4 før.');
     var forst = snitt(spm.slice(0, 4).map(function(b){ return b.spm; }));
-    if (spm.length >= 10) legg('ok', 'Siden starten (' + kd(spm[0].x) + ') har tempoet økt ' + fortegn(pst(a, forst), 0) + ' %.');
+    if (spm.length >= 10){ var dS = pst(a, forst); legg(dS >= 1 ? 'ok' : 'info', 'Siden starten (' + kd(spm[0].x) + ') er tempoet ' + fortegn(dS, 0) + ' %.'); }
   }
   // Aktivitet
   var U = D.uker, denne = U[U.length - 1], forrige = U[U.length - 2];
@@ -676,7 +687,7 @@ function tegnInnsikt(){
     legg(na < da ? 'ok' : 'info', 'Pulsen på R14 er ' + fortegn(na - da, 0) + ' slag mot de første øktene med belte (' + k(na) + ' mot ' + k(da) + ').');
   } else legg('info', 'Puls på samme motstand og pulsfall kommer når det finnes 4 økter med pulsbelte (' + r14.length + ' nå).');
   var hrr = O.filter(function(b){ return b.hrr1 != null; });
-  if (hrr.length){ var h = hrr[hrr.length - 1].hrr1; legg(h > GRENSER.hrr1 ? 'ok' : 'warn', 'Pulsfall første minutt etter siste økt: ' + k(h) + ' slag (over 12 er normalt).'); }
+  if (hrr.length){ var h = hrr[hrr.length - 1].hrr1; legg('info', 'Pulsfall første minutt etter siste økt: ' + k(h) + ' slag. Følg trenden; grensen på 12 slag gjelder etter en maksimal test.'); }
   // Kcal/min innenfor sammenlignbar periode
   var kpm = O.filter(function(b){ return b.kpm && b.kcalSammenlign; });
   if (kpm.length >= 6){
@@ -766,7 +777,7 @@ function tegnUker(){
 function tegnKondisjon(){
   var O = D.okter;
   var tempo = O.filter(function(b){ return b.spm; }).map(function(b){ return { x: b.x, y: b.spm }; });
-  graf('g-tempo', 'scatter', [punkt('Økt', tempo, F.faint), linje('Snitt 4 økter', rullende(tempo, 4), F.ok)],
+  graf('g-tempo', 'scatter', [punkt('Økt', tempo, F.faint), linje('Snitt 4 økter', rullendeOkter(tempo, 4), F.ok)],
     { enhet: 'skritt/min', utenForklaring: true, referanser: { markorer: hendelsesMarkorer() } });
 
   var kpm = O.filter(function(b){ return b.kpm; });
@@ -782,14 +793,14 @@ function tegnKondisjon(){
   var valgt = $('velg-r').value || (liste.indexOf('14') >= 0 ? '14' : liste[liste.length - 1]);
   $('velg-r').innerHTML = liste.length ? liste.map(function(r){ return '<option value="' + esc(r) + '"' + (r === valgt ? ' selected' : '') + '>R' + esc(r) + ' (' + esc(nivaa[r]) + ')</option>'; }).join('') : '<option>ingen data ennå</option>';
   var rp = O.filter(function(b){ return b.rPuls[valgt]; }).map(function(b){ return { x: b.x, y: b.rPuls[valgt] }; });
-  graf('g-rpuls', 'scatter', [punkt('Økt', rp, F.red), linje('Snitt 3 økter', rullende(rp, 3), F.bad)], { enhet: 'slag/min', utenForklaring: true, x: xRamme(rp), tom: 'Kommer når økter er logget med pulsbelte', y: { suggestedMin: 110, suggestedMax: 160 } });
+  graf('g-rpuls', 'scatter', [punkt('Økt', rp, F.red), linje('Snitt 3 økter', rullendeOkter(rp, 3), F.bad)], { enhet: 'slag/min', utenForklaring: true, x: xRamme(rp), tom: 'Kommer når økter er logget med pulsbelte', y: { suggestedMin: 110, suggestedMax: 160 } });
 
   var hrr = O.filter(function(b){ return b.hrr1 != null; }).map(function(b){ return { x: b.x, y: b.hrr1 }; });
   graf('g-hrr', 'scatter', [
     punkt('Fall 1 min (venstre)', hrr, F.teal),
-    punkt('Puls 5 min etter (høyre)', O.filter(function(b){ return b.puls5; }).map(function(b){ return { x: b.x, y: b.puls5 }; }), F.faint, { pointStyle: 'rectRot', yAxisID: 'y2' })
+    punkt('Puls 5 min etter (høyre)', O.filter(function(b){ return b.puls5; }).map(function(b){ return { x: b.x, y: b.puls5 }; }), F.faint, { pointStyle: 'rectRot', yAxisID: 'y2', tekst: function(y){ return k(y) + ' slag/min'; } })
   ], { enhet: 'slag', x: xRamme(hrr), tom: 'Kommer når økter er logget med pulsbelte', y: { suggestedMin: 0, suggestedMax: 40 }, y2: { position: 'right', suggestedMin: 80, suggestedMax: 130, grid: { display: false } },
-    referanser: { linjer: [{ y: GRENSER.hrr1, tekst: '12 slag', farge: F.warn, venstre: true }] } });
+    referanser: { linjer: [{ y: GRENSER.hrr1, tekst: '12 slag (maksimal test)', farge: F.faint, venstre: true }] } });
 
   var eff = O.filter(function(b){ return b.skrittPerSlag; }).map(function(b){ return { x: b.x, y: b.skrittPerSlag }; });
   graf('g-effekt', 'scatter', [punkt('Skritt per slag', eff, F.blue)], { des: 3, yDes: 2, utenForklaring: true, x: xRamme(eff), tom: 'Kommer når økter er logget med pulsbelte' });
@@ -962,6 +973,16 @@ function tegnKropp(){
    ================================================================ */
 function oktNavn(b){ return dato(b.x) + ' · ' + mmss(b.o.varighet_s) + (b.pulsKilde === 'belte' ? ' · puls' : ''); }
 
+// Hvert femte pulspunkt, med brudd i linja der beltet var borte mer enn 15 s (som grafen i appen)
+function pulsKurve(puls){
+  var ut = [], n = 0;
+  puls.forEach(function(p, j){
+    var hull = j > 0 && p[0] - puls[j - 1][0] > 15;
+    if (hull){ ut.push({ x: p[0] / 60, y: null }); n = 0; }
+    if (n++ % 5 === 0) ut.push({ x: p[0] / 60, y: p[1] });
+  });
+  return ut;
+}
 function tegnSammenligning(){
   var O = D.okter;
   if (!O.length) return;
@@ -970,7 +991,7 @@ function tegnSammenligning(){
   var sett = [];
   [[A, F.red, F.bad], [B, F.blue, F.lilla]].forEach(function(x, i){
     var o = x[0].o, navn = kd(x[0].x);
-    if (o.puls && o.puls.length) sett.push(linje('Puls ' + navn, o.puls.filter(function(p, j){ return j % 5 === 0; }).map(function(p){ return { x: p[0] / 60, y: p[1] }; }), x[1], { borderWidth: 2, tension: .3 }));
+    if (o.puls && o.puls.length) sett.push(linje('Puls ' + navn, pulsKurve(o.puls), x[1], { borderWidth: 2, tension: .3 }));
     if (o.motstand && o.motstand.length) sett.push(linje('Motstand ' + navn, o.motstand.map(function(r, m){ return { x: m, y: r }; }).concat([{ x: o.motstand.length, y: o.motstand[o.motstand.length - 1] }]), x[2],
       { stepped: true, borderWidth: 1.5, borderDash: i ? [4, 3] : [], yAxisID: 'y2', tension: 0 }));
   });
@@ -1065,10 +1086,15 @@ function tegnKlokke(){
   var sn = K.filter(function(d){ return d.sovn; });
   var harFaser = sn.some(function(d){ return d.sovn.dyp_min != null; });
   var tt = function(y){ return timerTekst(y * 60); };
-  var bar = function(navn, felt, farge){ return { label: navn, data: sn.map(function(d){ return { x: d.x, y: (d.sovn[felt] || 0) / 60, d: d }; }), backgroundColor: farge, stack: 's', tekst: tt }; };
-  var sett = harFaser ? [bar('Dyp', 'dyp_min', F.blue), bar('REM', 'rem_min', F.lilla), bar('Lett', 'lett_min', '#4a6fa5'), bar('Våken', 'vaken_min', F.faint)] : [bar('Søvn', 'hoved_min', F.blue)];
-  sett[sett.length - 1].etter = function(r){ var o = r.d.sovn; return klokkeTekst(new Date(o.start).getHours() + new Date(o.start).getMinutes() / 60) + '–' + klokkeTekst(new Date(o.slutt).getHours() + new Date(o.slutt).getMinutes() / 60) +
-    ' · sov ' + timerTekst(o.hoved_min) + (o.min > o.hoved_min + 5 ? ' (+ lur ' + timerTekst(o.min - o.hoved_min) + ')' : ''); };
+  var medFaser = function(d){ return d.sovn.dyp_min != null; };
+  var bar = function(navn, felt, farge, vis){ return { label: navn, data: sn.map(function(d){ return { x: d.x, y: vis(d) ? (d.sovn[felt] || 0) / 60 : null, d: d }; }), backgroundColor: farge, stack: 's', tekst: tt }; };
+  // Netter uten faser (klokka har ikke levert dem) vises med total søvn i egen farge, ikke som null
+  var sett = harFaser ? [bar('Dyp', 'dyp_min', F.blue, medFaser), bar('REM', 'rem_min', F.lilla, medFaser), bar('Lett', 'lett_min', '#4a6fa5', medFaser), bar('Våken', 'vaken_min', F.faint, medFaser)]
+    : [bar('Søvn', 'hoved_min', F.blue, function(){ return true; })];
+  if (harFaser && !sn.every(medFaser)) sett.push(bar('Søvn uten faser', 'hoved_min', F.teal, function(d){ return !medFaser(d); }));
+  sett.forEach(function(ds){ if (ds.label === 'Våken' || ds.label.indexOf('Søvn') === 0) ds.etter = sovnEtter; });
+  function sovnEtter(r){ var o = r.d.sovn; return klokkeTekst(new Date(o.start).getHours() + new Date(o.start).getMinutes() / 60) + '–' + klokkeTekst(new Date(o.slutt).getHours() + new Date(o.slutt).getMinutes() / 60) +
+    ' · sov ' + timerTekst(o.hoved_min) + (o.min > o.hoved_min + 5 ? ' (+ lur ' + timerTekst(o.min - o.hoved_min) + ')' : ''); }
   $('sovn-snitt').textContent = s != null ? 'snitt 7 netter ' + timerTekst(s) : '';
   var xs = sn.length ? { min: Math.max(sn[0].x, sn[sn.length - 1].x - 60 * DAG) - DAG, max: sn[sn.length - 1].x + DAG } : {};
   graf('g-sovn', 'bar', sett, { x: Object.assign({ stacked: true }, xs), y: { stacked: true, suggestedMin: 0, suggestedMax: 10, ticks: { callback: function(v){ return v + ' t'; } } },
@@ -1140,7 +1166,7 @@ function tegnKlokke(){
     for (var t = 0; t < 24; t++) if (n[t]) ut.push({ x: t + .5, y: sum[t] / n[t] });
     return ut;
   }
-  var t7 = timesnitt(iDag - 7 * DAG, iDag + DAG), t30 = timesnitt(iDag - 37 * DAG, iDag - 7 * DAG);
+  var t7 = timesnitt(iDag - 7 * DAG, iDag), t30 = timesnitt(iDag - 37 * DAG, iDag - 7 * DAG);
   var natt = t7.filter(function(p){ return p.x < 6; });
   $('puls-kurve').textContent = natt.length ? 'natt (00–06) ' + k(snitt(natt.map(function(p){ return p.y; }))) + ' slag/min' : '';
   graf('g-pulstime', 'scatter', [linje('Siste 7 døgn', t7, F.red, { pointRadius: 2.5 }), linje('De 30 før', t30, F.faint, { borderDash: [5, 4] })],
