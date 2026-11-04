@@ -133,7 +133,7 @@ a{color:var(--blue)}
         <h3>Aktivitet per uke <span id="rekke"></span></h3>
         <div class="graf"><canvas id="g-uker"></canvas></div>
         <div class="merknad">Helsedirektoratet: 150–300 min moderat eller 75–150 min høy intensitet per uke — ett minutt høy teller som to moderate.
-          Helsedirektoratet beskriver intensitet ut fra pusten (moderat: litt andpusten, høy: kraftig andpusten); appen bruker pulsen som stedfortreder (moderat 64–76 %, høy ≥ 77 % av makspuls, ACSM). Økter uten pulskurve er anslått fra pulsobservasjoner, ellers regnet som moderat.
+          Helsedirektoratet beskriver intensitet ut fra pusten (moderat: litt andpusten, høy: kraftig andpusten); appen bruker pulsen som stedfortreder (moderat 64–76 %, høy ≥ 77 % av makspuls, ACSM). Økter uten pulskurve er anslått fra pulsobservasjoner, ellers regnet som moderat. Lys blå er moderat tid uten målt puls.
           Råd om muskelstyrkende aktivitet minst 2 dager i uka registreres ikke her.</div>
       </div>
       <div class="kort"><h3>Helsestatus <span>▼ nå · ┆ mål</span></h3><div id="malere"></div>
@@ -149,8 +149,8 @@ a{color:var(--blue)}
         <div class="merknad">Grønn = snitt av 4 siste økter. Påvirkes ikke av vekt/alder i maskinen — det ærligste målet på arbeid over tid.</div></div>
       <div class="kort"><h3>Kcal per minutt <span>sammenlignbare perioder</span></h3><div class="graf"><canvas id="g-kpm"></canvas></div>
         <div class="merknad">Grå = før vekt og alder ble lagt inn i maskinen (Precor regner kcal fra vekten som er tastet inn).</div></div>
-      <div class="kort"><h3>Puls på samme motstand <span><select id="velg-r"></select></span></h3><div class="graf"><canvas id="g-rpuls"></canvas></div>
-        <div class="merknad">Snittpuls på valgt motstand etter de første 10 min. Lavere puls for samme arbeid = bedre kondisjon. Krever pulsbelte.</div></div>
+      <div class="kort"><h3>Puls på motstand fra programmet <span><select id="velg-r"></select></span></h3><div class="graf"><canvas id="g-rpuls"></canvas></div>
+        <div class="merknad">Snittpuls på valgt motstand etter de første 10 min. Motstanden kommer fra programmet og søylene du eventuelt har rettet, og er ikke målt på maskinen. Tempoet er ikke med, så lavere puls er ikke alene et tegn på bedre kondisjon. Krever pulsbelte.</div></div>
       <div class="kort"><h3>Pulsfall etter økta</h3><div class="graf"><canvas id="g-hrr"></canvas></div>
         <div class="merknad">Fall første minutt etter Stopp. Grensen på 12 slag kommer fra maksimale tester (Cole m.fl., NEJM 1999); etter en vanlig økt er tallet lavere og mest nyttig som trend. Høyere er bedre.</div></div>
       <div class="kort"><h3>Skritt per hjerteslag</h3><div class="graf lav"><canvas id="g-effekt"></canvas></div>
@@ -349,6 +349,20 @@ async function rest(metode, sti, body, ekstra){
    ================================================================ */
 var D = null;   // alt som er hentet og beregnet
 
+// Bildefelt som var usikkert ved lesing, står uendret og ikke er bekreftet (samme regel som shared.js i appen)
+function usikkertFelt(o, k){
+  var l = o && o.lesing;
+  if (!l || !l.verdier || l.verdier[k] == null || o[k] == null) return false;
+  if ((l.usikre || []).indexOf(k) < 0 || (l.bekreftet || []).indexOf(k) >= 0) return false;
+  return +o[k] === +l.verdier[k];
+}
+function sp(o){ for (var i = 1; i < arguments.length; i++) if (usikkertFelt(o, arguments[i])) return ' ?'; return ''; }
+// Konsolltiden, ellers appens tid (merket), slik at tiden ikke står tom når den er brukt i beregningen
+function tidTekst(b){
+  if (b.o.varighet_s) return mmss(b.o.varighet_s) + sp(b.o, 'varighet_s');
+  return b.min ? mmss(Math.round(b.min * 60)) + ' (app)' : '–';
+}
+
 function beregnOkt(o, profil){
   var maks = +o.makspuls || profil.makspuls;   // makspulsen da økta ble gjort (lagres fra nå av)
   // Konsolltiden, ellers appens egen stoppeklokke (som appen selv gjør)
@@ -372,6 +386,9 @@ function beregnOkt(o, profil){
     // ellers ga en delvis pulskurve færre minutter enn ingen kurve
     var uten = Math.max(0, (min || 0) - dekket / 60);
     b.modMin = mod / 60 + uten; b.hoyMin = hoy / 60;
+    b.anslagMod = uten; b.anslagMin = uten;
+    // Puls og konsoll har hver sin klokke: ukeminuttene skal ikke bli færre enn minuttene pulsen faktisk dekket
+    b.aktivMin = Math.max(min || 0, dekket / 60);
     // Snittpuls per motstandsnivå etter 10 min (oppvarming og pulsstigning utelatt)
     var perR = {};
     p.forEach(function(q){
@@ -395,6 +412,8 @@ function beregnOkt(o, profil){
     var andel2 = obs ? obs / maks : GRENSER.moderat;
     b.modMin = andel2 < GRENSER.hoy && andel2 >= GRENSER.moderat ? (min || 0) : 0;
     b.hoyMin = andel2 >= GRENSER.hoy ? (min || 0) : 0;
+    b.anslagMod = b.modMin; b.anslagMin = b.modMin + b.hoyMin;
+    b.aktivMin = min || 0;
     b.rPuls = {};
   }
   b.ekv = b.modMin + 2 * b.hoyMin;
@@ -615,12 +634,12 @@ async function last(){
 function lagUker(okter){
   var na = ukeStart(Date.now()), uker = [];
   // Midt i uka før ukeStart, så sommertid (23/25-timers døgn) ikke flytter mandagen
-  for (var i = 11; i >= 0; i--){ var s = ukeStart(na - i * UKE + 3 * DAG); uker.push({ start: s, nr: ukeNr(s), min: 0, ekv: 0, mod: 0, hoy: 0, okter: 0, anslag: false }); }
+  for (var i = 11; i >= 0; i--){ var s = ukeStart(na - i * UKE + 3 * DAG); uker.push({ start: s, nr: ukeNr(s), min: 0, ekv: 0, mod: 0, hoy: 0, okter: 0, anslagMod: 0, anslagMin: 0 }); }
   okter.forEach(function(b){
     var u = uker.filter(function(x){ return x.start === ukeStart(b.x); })[0];
     if (!u) return;
-    u.min += b.min || 0; u.mod += b.modMin; u.hoy += b.hoyMin; u.ekv += b.ekv; u.okter++;
-    if (b.pulsKilde !== 'belte') u.anslag = true;
+    u.min += b.aktivMin; u.mod += b.modMin; u.hoy += b.hoyMin; u.ekv += b.ekv; u.okter++;
+    u.anslagMod += b.anslagMod; u.anslagMin += b.anslagMin;
   });
   return uker;
 }
@@ -655,8 +674,8 @@ function tegnInnsikt(){
     var iDag = new Date(); iDag.setHours(0, 0, 0, 0);
     var dagen = new Date(siste.x); dagen.setHours(0, 0, 0, 0);
     var dager = Math.round((iDag - dagen) / DAG);   // kalenderdager: en økt i går kveld er «i går» også neste morgen
-    legg(dager > 7 ? 'warn' : 'info', 'Siste økt ' + (dager === 0 ? 'i dag' : dager === 1 ? 'i går' : 'for ' + dager + ' dager siden') + ': ' + mmss(siste.o.varighet_s) +
-      ', ' + k(siste.o.kcal, 1) + ' kcal, ' + k(siste.spm) + ' skritt/min.');
+    legg(dager > 7 ? 'warn' : 'info', 'Siste økt ' + (dager === 0 ? 'i dag' : dager === 1 ? 'i går' : 'for ' + dager + ' dager siden') + ': ' + tidTekst(siste) +
+      ', ' + k(siste.o.kcal, 1) + sp(siste.o, 'kcal') + ' kcal, ' + k(siste.spm) + sp(siste.o, 'skritt', 'varighet_s') + ' skritt/min.');
   }
   // Tempo: siste 4 mot de 4 før
   var spm = O.filter(function(b){ return b.spm; });
@@ -669,9 +688,10 @@ function tegnInnsikt(){
   // Aktivitet
   var U = D.uker, denne = U[U.length - 1], forrige = U[U.length - 2];
   var rekke = rekkeUker();
+  function anslagTekst(u){ return u.anslagMin >= 1 ? ' ' + Math.round(u.anslagMin) + ' av minuttene er anslått uten pulskurve.' : ''; }
   legg(forrige.ekv >= GRENSER.ukeMin ? 'ok' : 'warn', 'Forrige uke: ' + Math.round(forrige.min) + ' min trening = ' + Math.round(forrige.ekv) +
-    ' moderat-ekvivalenter (anbefalt 150–300)' + (rekke > 1 ? '. ' + rekke + ' uker på rad innenfor anbefalingen.' : '.'));
-  if (denne.okter) legg('info', 'Denne uka så langt: ' + Math.round(denne.ekv) + ' av 150' + (denne.ekv >= 150 ? ' ✓' : ', ' + Math.round(150 - denne.ekv) + ' igjen') + '.');
+    ' moderat-ekvivalenter (anbefalt 150–300)' + (rekke > 1 ? '. ' + rekke + ' uker på rad innenfor anbefalingen.' : '.') + anslagTekst(forrige));
+  if (denne.okter) legg('info', 'Denne uka så langt: ' + Math.round(denne.ekv) + ' av 150' + (denne.ekv >= 150 ? ' ✓' : ', ' + Math.round(150 - denne.ekv) + ' igjen') + '.' + anslagTekst(denne));
   // Vekt
   var T = D.vektTrend;
   if (T){
@@ -684,8 +704,10 @@ function tegnInnsikt(){
   var r14 = O.filter(function(b){ return b.rPuls[14]; });
   if (r14.length >= 4){
     var na = snitt(r14.slice(-2).map(function(b){ return b.rPuls[14]; })), da = snitt(r14.slice(0, 2).map(function(b){ return b.rPuls[14]; }));
-    legg(na < da ? 'ok' : 'info', 'Pulsen på R14 er ' + fortegn(na - da, 0) + ' slag mot de første øktene med belte (' + k(na) + ' mot ' + k(da) + ').');
-  } else legg('info', 'Puls på samme motstand og pulsfall kommer når det finnes 4 økter med pulsbelte (' + r14.length + ' nå).');
+    var tempo = function(l){ return snitt(l.filter(function(b){ return !sp(b.o, 'skritt', 'varighet_s'); }).map(function(b){ return b.spm; }).filter(Boolean)); };
+    legg('info', 'Puls på R14 fra programmet er ' + fortegn(na - da, 0) + ' slag mot de første øktene med belte (' + k(na) + ' mot ' + k(da) + '), med tempo ' +
+      k(tempo(r14.slice(-2))) + ' mot ' + k(tempo(r14.slice(0, 2))) + ' skritt/min. Motstanden er ikke målt, så dette er ikke et sikkert tegn på bedre kondisjon.');
+  } else legg('info', 'Puls på motstand fra programmet og pulsfall kommer når det finnes 4 økter med pulsbelte (' + r14.length + ' nå).');
   var hrr = O.filter(function(b){ return b.hrr1 != null; });
   if (hrr.length){ var h = hrr[hrr.length - 1].hrr1; legg('info', 'Pulsfall første minutt etter siste økt: ' + k(h) + ' slag. Følg trenden; grensen på 12 slag gjelder etter en maksimal test.'); }
   // Kcal/min innenfor sammenlignbar periode
@@ -755,7 +777,8 @@ function tegnUker(){
   $('rekke').textContent = rekke ? rekke + (rekke === 1 ? ' uke' : ' uker') + ' på rad innenfor' : '';
   var navn = function(v){ var u = U.filter(function(x){ return Math.abs(x.start - v) < DAG / 2; })[0]; return u ? 'uke ' + u.nr : ''; };
   graf('g-uker', 'bar', [
-    { label: 'Moderat (min)', data: U.map(function(u){ return { x: u.start, y: Math.round(u.mod) }; }), backgroundColor: F.blue, stack: 's', barPercentage: .9, categoryPercentage: .9 },
+    { label: 'Moderat, målt (min)', data: U.map(function(u){ return { x: u.start, y: Math.round(u.mod - u.anslagMod) }; }), backgroundColor: F.blue, stack: 's', barPercentage: .9, categoryPercentage: .9 },
+    { label: 'Moderat, anslått (min)', data: U.map(function(u){ return { x: u.start, y: Math.round(u.anslagMod) }; }), backgroundColor: F.blue + '66', stack: 's', barPercentage: .9, categoryPercentage: .9 },
     { label: 'Høy intensitet (teller ×2)', data: U.map(function(u){ return { x: u.start, y: Math.round(2 * u.hoy) }; }), backgroundColor: F.orange, stack: 's', barPercentage: .9, categoryPercentage: .9 }
   ], {
     xTekst: navn, enhet: 'min',
@@ -971,7 +994,7 @@ function tegnKropp(){
 /* ================================================================
    Økter: F + H
    ================================================================ */
-function oktNavn(b){ return dato(b.x) + ' · ' + mmss(b.o.varighet_s) + (b.pulsKilde === 'belte' ? ' · puls' : ''); }
+function oktNavn(b){ return dato(b.x) + ' · ' + tidTekst(b) + (b.pulsKilde === 'belte' ? ' · puls' : ''); }
 
 // Hvert femte pulspunkt, med brudd i linja der beltet var borte mer enn 15 s (som grafen i appen)
 function pulsKurve(puls){
@@ -999,8 +1022,8 @@ function tegnSammenligning(){
     y2: { position: 'right', min: 0, max: 20, grid: { display: false }, title: { display: true, text: 'motstand' } } });
   function kol(t, f){ return '<div><small>' + t + '</small><b>' + f(A) + ' <span class="gra" style="font-size:.8em">/ ' + f(B) + '</span></b></div>'; }
   $('sml-tall').innerHTML = [
-    kol('Tid', function(x){ return mmss(x.o.varighet_s); }), kol('Kcal', function(x){ return k(x.o.kcal, 1); }),
-    kol('Tempo', function(x){ return k(x.spm); }), kol('Snittpuls', function(x){ return x.pulsKilde === 'belte' ? k(x.snittPuls) : '–'; }),
+    kol('Tid', function(x){ return tidTekst(x); }), kol('Kcal', function(x){ return k(x.o.kcal, 1) + sp(x.o, 'kcal'); }),
+    kol('Tempo', function(x){ return k(x.spm) + sp(x.o, 'skritt', 'varighet_s'); }), kol('Snittpuls', function(x){ return x.pulsKilde === 'belte' ? k(x.snittPuls) : '–'; }),
     kol('Puls R14', function(x){ return k(x.rPuls[14]); }), kol('Pulsfall 1 min', function(x){ return k(x.hrr1); })
   ].join('');
 }
@@ -1019,11 +1042,11 @@ function tegnRekorder(){
     return '<tr><td class="v">' + navn + '</td><td>' + fmt(f(best)) + '</td><td class="v gra">' + dato(best.x) + '</td></tr>';
   }
   $('rekorder').innerHTML = [
-    rek('Flest kcal', O.filter(function(b){ return !b.o.kcal_ca; }), function(b){ return b.o.kcal; }, false, function(v){ return k(v, 1) + ' kcal'; }),
-    rek('Høyest kcal/min (sammenlignbare)', O.filter(function(b){ return b.kcalSammenlign; }), function(b){ return b.kpm; }, false, function(v){ return k(v, 1); }),
-    rek('Høyest tempo', O, function(b){ return b.spm; }, false, function(v){ return k(v) + ' skritt/min'; }),
-    rek('Flest skritt', O, function(b){ return b.o.skritt; }, false, function(v){ return k(v); }),
-    rek('Lavest puls på R14', O, function(b){ return b.rPuls[14]; }, true, function(v){ return k(v) + ' slag/min'; }),
+    rek('Flest kcal', O.filter(function(b){ return !b.o.kcal_ca && !sp(b.o, 'kcal'); }), function(b){ return b.o.kcal; }, false, function(v){ return k(v, 1) + ' kcal'; }),
+    rek('Høyest kcal/min (sammenlignbare)', O.filter(function(b){ return b.kcalSammenlign && !sp(b.o, 'kcal', 'varighet_s'); }), function(b){ return b.kpm; }, false, function(v){ return k(v, 1); }),
+    rek('Høyest tempo', O.filter(function(b){ return !sp(b.o, 'skritt', 'varighet_s'); }), function(b){ return b.spm; }, false, function(v){ return k(v) + ' skritt/min'; }),
+    rek('Flest skritt', O.filter(function(b){ return !sp(b.o, 'skritt'); }), function(b){ return b.o.skritt; }, false, function(v){ return k(v); }),
+    rek('Lavest puls på R14 fra programmet', O, function(b){ return b.rPuls[14]; }, true, function(v){ return k(v) + ' slag/min'; }),
     rek('Største pulsfall 1 min', O, function(b){ return b.hrr1; }, false, function(v){ return k(v) + ' slag'; })
   ].join('');
 }
@@ -1031,16 +1054,16 @@ function tegnRekorder(){
 function tegnTabell(){
   var O = D.okter;
   $('rader').innerHTML = O.slice().reverse().map(function(b){
-    var o = b.o, f3 = o.skritt_per_min != null ? k(o.skritt_per_min) + ' spm' : o.watt != null ? k(o.watt) + ' W' : o.motstand_konsoll != null ? 'R' + k(o.motstand_konsoll) : '–';
+    var o = b.o, f3 = o.skritt_per_min != null ? k(o.skritt_per_min) + ' spm' + sp(o, 'skritt_per_min') : o.watt != null ? k(o.watt) + ' W' + sp(o, 'watt') : o.motstand_konsoll != null ? 'R' + k(o.motstand_konsoll) + sp(o, 'motstand_konsoll') : '–';
     var kilde = o.kilde || 'app';
     var puls = b.pulsKilde === 'belte' ? k(b.snittPuls) : b.pulsKilde === 'observasjon' ? '<span class="gra" title="fra pulsobservasjon i loggen">~' + k(b.snittPuls) + '</span>' : '–';
-    return '<tr><td class="v">' + esc(dato(b.x)) + '</td><td>' + mmss(o.varighet_s) + '</td><td>' + k(o.skritt) + '</td><td>' + k(b.spm) +
-      '</td><td' + (o.kcal_ca ? ' class="ca" title="omtrentlig"' : '') + '>' + k(o.kcal, 1) + '</td><td' + (b.kcalSammenlign ? '' : ' class="gra" title="før vekt ble lagt inn i maskinen"') + '>' + k(b.kpm, 1) +
+    return '<tr><td class="v">' + esc(dato(b.x)) + '</td><td>' + tidTekst(b) + '</td><td>' + k(o.skritt) + sp(o, 'skritt') + '</td><td>' + k(b.spm) + sp(o, 'skritt', 'varighet_s') +
+      '</td><td' + (o.kcal_ca ? ' class="ca" title="omtrentlig"' : '') + '>' + k(o.kcal, 1) + sp(o, 'kcal') + '</td><td' + (b.kcalSammenlign ? '' : ' class="gra" title="før vekt ble lagt inn i maskinen"') + '>' + k(b.kpm, 1) + sp(o, 'kcal', 'varighet_s') +
       '</td><td>' + f3 + '</td><td>' + puls + '</td><td>' + k(b.rPuls[14]) + '</td><td>' + k(b.hrr1) +
       '</td><td class="v"><span class="merke ' + esc(kilde) + '">' + esc(kilde) + '</span>' + (o.lesing ? ' <span class="merke" title="lest fra bilde">📷</span>' : '') +
       '</td><td class="notat">' + esc([o.mal_navn, o.notat].filter(Boolean).join(' · ')) + '</td></tr>';
   }).join('');
-  $('datakvalitet').innerHTML = 'Gul kcal = omtrentlig. Grå kcal/min = ikke sammenlignbar (før vekt/alder i maskinen). ~puls = fra pulsobservasjon i loggen, ikke målt kurve. ' +
+  $('datakvalitet').innerHTML = 'Gul kcal = omtrentlig. Grå kcal/min = ikke sammenlignbar (før vekt/alder i maskinen). ~puls = fra pulsobservasjon i loggen, ikke målt kurve. ? = usikker bildeavlesning som ikke er rettet eller bekreftet i appen, og teller ikke i rekorder. (app) = appens tid, konsolltid mangler. Puls R14 bruker motstand fra programmet, ikke målt motstand. ' +
     'Hendelser: ' + HENDELSER.map(function(h){ return dato(msFra(h.dato)) + ' ' + h.tekst; }).join(' · ') + '.';
 }
 
@@ -1249,7 +1272,7 @@ function tegnNokkel(){
     var dagen = new Date(siste.x); dagen.setHours(0, 0, 0, 0);
     var dager = Math.round((iDag - dagen) / DAG);
     nk(dager > 7 ? 'warn' : '', 'Siste økt', dager === 0 ? 'I dag' : dager === 1 ? 'I går' : dager, dager > 1 ? ' dager siden' : '',
-      mmss(siste.o.varighet_s) + ' · ' + k(siste.o.kcal, 0) + ' kcal');
+      tidTekst(siste) + ' · ' + k(siste.o.kcal, 0) + sp(siste.o, 'kcal') + ' kcal');
   }
   $('nokkel').innerHTML = ut.join('');
 }
