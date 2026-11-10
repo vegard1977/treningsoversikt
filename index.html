@@ -639,6 +639,8 @@ async function last(){
     D.startVekt = (sml || forste).y;
   }
   D.vektTrend = vektTrend();
+  // Én «nåværende vekt» for alle faner: siste sammenlignbare morgenveiing (samme som trenden), ellers siste dagsverdi
+  D.naVekt = D.vektTrend ? D.vektTrend.na : D.vekt.length ? D.vekt[D.vekt.length - 1] : null;
 }
 
 // Siste 12 uker (også uker uten trening), med moderat-ekvivalenter
@@ -762,7 +764,7 @@ function tegnMalere(){
   var denne = U[U.length - 1], forrige = U[U.length - 2];
   s += skala('Aktivitet denne uka', denne.ekv, Math.round(denne.ekv) + ' min' + (forrige ? ' (forrige ' + Math.round(forrige.ekv) + ')' : ''), 0, 360,
     [[0, 150, F.bad, 'under'], [150, 300, F.ok, '150–300 anbefalt'], [300, 360, F.teal, 'ekstra']]);
-  var vekt = D.vekt.length ? D.vekt[D.vekt.length - 1].y : null, h2 = P.hoyde ? Math.pow(P.hoyde / 100, 2) : null;
+  var vekt = D.naVekt ? D.naVekt.y : null, h2 = P.hoyde ? Math.pow(P.hoyde / 100, 2) : null;
   if (vekt && h2){
     var kmi = vekt / h2;
     s += skala('KMI', kmi, k(kmi, 1), 18, 40, [[18, 18.5, F.warn], [18.5, 25, F.ok, 'normal'], [25, 30, F.warn, 'overvekt'], [30, 35, F.bad, 'fedme I'], [35, 40, F.red, 'II']], P.malVekt ? P.malVekt / h2 : null);
@@ -772,7 +774,7 @@ function tegnMalere(){
     [[75, GRENSER.midjeRisiko, F.ok, 'lav risiko'], [GRENSER.midjeRisiko, GRENSER.midjeBukfedme, F.warn, 'økt risiko'], [GRENSER.midjeBukfedme, 120, F.bad, 'bukfedme']], P.malMidje);
   if (vekt){
     var start = D.startVekt, m5 = start * .95, m10 = start * .9;
-    s += skala('Vekt mot milepæler', vekt, k(vekt, 1) + ' kg (' + fortegn((vekt / start - 1) * 100, 1) + ' %)', Math.min(m10, P.malVekt || m10) - 3, start + 2,
+    s += skala('Vekt mot milepæler', vekt, k(vekt, 1) + ' kg (' + fortegn((vekt / start - 1) * 100, 1) + ' %, ' + kd(D.naVekt.x) + ')', Math.min(m10, P.malVekt || m10) - 3, start + 2,
       [[Math.min(m10, P.malVekt || m10) - 3, m10, F.ok, '−10 %'], [m10, m5, F.teal, '−5 %'], [m5, start + 2, F.warn, 'start ' + k(start)]], P.malVekt);
   }
   $('malere').innerHTML = s || '<div class="merknad">Legg inn høyde, vekt og midje i appen.</div>';
@@ -936,7 +938,7 @@ function tegnKropp(){
     linje('', D.vekt, F.blue, { tension: 0, borderWidth: 2 }), punkt('Andre veiinger', D.vektAndre, F.faint, { pointRadius: 2.5 })];
   var maxX = D.vekt.length ? D.vekt[D.vekt.length - 1].x : Date.now();
   // Milepæler ut fra nåværende vekt: den siste passerte og de tre neste, pluss «Ditt mål» alltid
-  var naVekt = T ? T.na.y : D.vekt.length ? D.vekt[D.vekt.length - 1].y : 0;
+  var naVekt = D.naVekt ? D.naVekt.y : 0;
   var under = ms.filter(function(m){ return m.vekt < naVekt; });
   var vis = ms.filter(function(m){ return m.vekt >= naVekt; }).slice(-1).concat(under.slice(0, 3));
   ms.forEach(function(m){ if (m.navn === 'Ditt mål' && vis.indexOf(m) < 0) vis.push(m); });
@@ -1000,7 +1002,7 @@ function tegnKropp(){
     { enhet: 'mmHg', x: xRamme(bt), tom: 'Ta bilde av blodtrykksmåleren fra morgenkortet i appen', y: { suggestedMin: 60, suggestedMax: 150 },
       referanser: { linjer: [{ y: 135, tekst: '135', farge: F.warn, venstre: true }, { y: 85, tekst: '85', farge: F.warn, venstre: true }] } });
 
-  var na = D.vekt.length ? D.vekt[D.vekt.length - 1].y : null;
+  var na = D.naVekt ? D.naVekt.y : null;
   $('milepaeler').innerHTML = ms.map(function(m){
     var naadd = na != null && na <= m.vekt, eta = T && !naadd ? T.eta(m.vekt) : null;
     return '<tr><td class="v">' + (naadd ? '✓ ' : '') + m.navn + '</td><td>' + k(m.vekt, 1) + ' kg</td><td>' + (naadd ? 'nådd' : k(na - m.vekt, 1) + ' kg') +
@@ -1276,7 +1278,8 @@ function tegnNokkel(){
     ut.push('<div class="nk ' + tone + '"><small>' + navn + '</small><b>' + tall + '<span>' + enhet + '</span></b><em class="' + (underTone || '') + '">' + under + '</em></div>');
   }
   nk(denne.ekv >= GRENSER.ukeMin ? 'ok' : '', 'Denne uka', Math.round(denne.ekv), ' / 150 min', forrige ? 'forrige ' + Math.round(forrige.ekv) : '');
-  if (T) nk(T.perUke < 0 ? 'ok' : 'warn', 'Vekt', k(T.na.y, 1), ' kg', fortegn(T.perUke, 2) + ' kg/uke', T.perUke < 0 ? 'ok' : 'warn');
+  if (T) nk(T.perUke < 0 ? 'ok' : 'warn', 'Vekt', k(T.na.y, 1), ' kg', fortegn(T.perUke, 2) + ' kg/uke · ' + kd(T.na.x), T.perUke < 0 ? 'ok' : 'warn');
+  else if (D.naVekt) nk('', 'Vekt', k(D.naVekt.y, 1), ' kg', kd(D.naVekt.x));
   else nk('', 'Vekt', '–', '', 'ingen veiinger');
   var spm = tempoOkter(O);
   if (spm.length >= 4){
