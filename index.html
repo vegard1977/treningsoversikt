@@ -639,8 +639,9 @@ async function last(){
     D.startVekt = (sml || forste).y;
   }
   D.vektTrend = vektTrend();
-  // Én «nåværende vekt» for alle faner: siste sammenlignbare morgenveiing (samme som trenden), ellers siste dagsverdi
-  D.naVekt = D.vektTrend ? D.vektTrend.na : D.vekt.length ? D.vekt[D.vekt.length - 1] : null;
+  // Én «nåværende vekt» for alle faner: siste dagsverdi, også om veiingen ikke er sammenlignbar (Vegard 2026-11-10).
+  // Trend, tempo og framskriving regnes fortsatt bare fra sammenlignbare veiinger.
+  D.naVekt = D.vekt.length ? D.vekt[D.vekt.length - 1] : null;
 }
 
 // Siste 12 uker (også uker uten trening), med moderat-ekvivalenter
@@ -1278,7 +1279,7 @@ function tegnNokkel(){
     ut.push('<div class="nk ' + tone + '"><small>' + navn + '</small><b>' + tall + '<span>' + enhet + '</span></b><em class="' + (underTone || '') + '">' + under + '</em></div>');
   }
   nk(denne.ekv >= GRENSER.ukeMin ? 'ok' : '', 'Denne uka', Math.round(denne.ekv), ' / 150 min', forrige ? 'forrige ' + Math.round(forrige.ekv) : '');
-  if (T) nk(T.perUke < 0 ? 'ok' : 'warn', 'Vekt', k(T.na.y, 1), ' kg', fortegn(T.perUke, 2) + ' kg/uke · ' + kd(T.na.x), T.perUke < 0 ? 'ok' : 'warn');
+  if (T) nk(T.perUke < 0 ? 'ok' : 'warn', 'Vekt', k(D.naVekt.y, 1), ' kg', fortegn(T.perUke, 2) + ' kg/uke · ' + kd(D.naVekt.x), T.perUke < 0 ? 'ok' : 'warn');
   else if (D.naVekt) nk('', 'Vekt', k(D.naVekt.y, 1), ' kg', kd(D.naVekt.x));
   else nk('', 'Vekt', '–', '', 'ingen veiinger');
   var spm = tempoOkter(O);
